@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"regexp"
+	"runtime"
 	"sort"
 	"strconv"
 	"strings"
@@ -20,9 +21,10 @@ import (
 	"github.com/amken3d/rp-asm/studio/internal/build"
 	"github.com/amken3d/rp-asm/studio/internal/catalog"
 	"github.com/amken3d/rp-asm/studio/internal/flash"
-	"github.com/amken3d/rp-asm/studio/internal/picotool"
 	"github.com/amken3d/rp-asm/studio/internal/project"
 )
+
+const udevRulePath = "/etc/udev/rules.d/99-rpasmboot.rules"
 
 // Persistent scroll list for the build-output panel. ui.Scroll constructs a
 // fresh widget per frame, which would reset scroll position; reusing this
@@ -77,6 +79,13 @@ type appState struct {
 	mode       *ui.State[string]
 	modeTabBar *ui.TabBarView
 
+	// Sticky per-mode layout preferences ("flash" | "sram"). Captured when
+	// switching away from a mode, restored when switching back, so a manual
+	// override survives tab toggles. Initial values match the per-mode default
+	// (SRAM for Examples, flash for Custom).
+	examplesLayout string
+	customLayout   string
+
 	// Custom-mode only — path to a user-provided .S file.
 	userSourceInput *ui.InputView
 
@@ -92,12 +101,10 @@ type appState struct {
 	problems  *ui.State[[]Problem]
 	memory    *ui.State[*build.MemoryUsage]
 	activeTab *ui.State[string] // "output" | "problems" | "memory"
-	building  *ui.State[bool]
-	flashing  *ui.State[bool]
-	installing *ui.State[bool]
-	rebooting  *ui.State[bool]
-	picotoolSt *ui.State[picotool.Status]
-	boardSt    *ui.State[flash.BoardState]
+	building *ui.State[bool]
+	flashing *ui.State[bool]
+	udevOK   *ui.State[bool]
+	boardSt  *ui.State[flash.BoardState]
 
 	logMu sync.Mutex
 }
@@ -148,7 +155,11 @@ func newApp(root string, cat *catalog.Catalog) *appState {
 		tgtDropdown.SetSelected(0)
 	}
 
-	layoutDropdown := ui.Dropdown("flash", "sram").SetSelected(0)
+	// Default Layout depends on the initial mode (Examples). Examples mode
+	// prefers SRAM (faster iteration, doesn't wear flash); Custom mode prefers
+	// flash (conservative — persists across power cycles). Switching tabs
+	// flips the default; user can still override per-build.
+	layoutDropdown := ui.Dropdown("flash", "sram").SetSelected(1) // 1 = sram
 
 	nameInput := ui.Input().Placeholder("Project name")
 	nameInput.SetValue("blinky")
@@ -183,25 +194,48 @@ func newApp(root string, cat *catalog.Catalog) *appState {
 		userSourceInput:  userSourceInput,
 		projectPathInput: projectPathInput,
 		mode:             ui.NewState("examples"),
+		examplesLayout:   "sram",
+		customLayout:     "flash",
 		status:     ui.NewState("Ready."),
 		logLines:   ui.NewState([]string{}),
 		problems:   ui.NewState([]Problem{}),
 		memory:     ui.NewState[*build.MemoryUsage](nil),
 		activeTab:  ui.NewState("output"),
-		building:   ui.NewState(false),
-		flashing:   ui.NewState(false),
-		installing: ui.NewState(false),
-		rebooting:  ui.NewState(false),
-		picotoolSt: ui.NewState(picotool.Detect()),
-		boardSt:    ui.NewState(flash.DetectBoard()),
+		building: ui.NewState(false),
+		flashing: ui.NewState(false),
+		udevOK:   ui.NewState(detectUdevRule()),
+		boardSt:  ui.NewState(flash.DetectBoard()),
 	}
 	a.modeTabBar = ui.TabBar("Examples", "Custom Project").
 		SetSelected(0).
 		OnSelect(func(idx int) {
+			// Capture the user's current layout choice for the mode we're
+			// leaving, then restore the stored choice for the mode we're
+			// entering. SetSelected on the dropdown is programmatic and does
+			// NOT fire its own OnSelect, so this stays single-source-of-truth.
+			cur := a.layoutDropdown.SelectedText()
+			switch a.mode.Get() {
+			case "examples":
+				if cur != "" {
+					a.examplesLayout = cur
+				}
+			case "custom":
+				if cur != "" {
+					a.customLayout = cur
+				}
+			}
+			var next string
 			if idx == 1 {
 				a.mode.Set("custom")
+				next = a.customLayout
 			} else {
 				a.mode.Set("examples")
+				next = a.examplesLayout
+			}
+			if next == "sram" {
+				a.layoutDropdown.SetSelected(1)
+			} else {
+				a.layoutDropdown.SetSelected(0)
 			}
 		})
 	return a
@@ -398,6 +432,14 @@ func (a *appState) applyProject(p *project.Project) {
 	} else {
 		a.layoutDropdown.SetSelected(0)
 	}
+	// Also persist the loaded layout into the per-mode store so a subsequent
+	// tab toggle round-trip doesn't reset back to the static default.
+	switch mode {
+	case "examples":
+		a.examplesLayout = p.Layout
+	case "custom":
+		a.customLayout = p.Layout
+	}
 	switch mode {
 	case "examples":
 		// Restore example selection by name.
@@ -480,103 +522,37 @@ func readExampleHeader(path string) []string {
 	return all
 }
 
-// toolsRow shows the picotool install state and BOOTSEL board state, plus
-// action buttons (Install picotool when missing, Reset to BOOTSEL when a board
-// is reachable). One horizontal row at the top, just below the top bar.
+// toolsRow shows USB-access (udev) status on Linux plus the live BOOTSEL
+// board badge. v1 uses in-tree rpasmboot — no external tool install, so the
+// only setup step a user might need is the udev rule.
 func (a *appState) toolsRow() ui.View {
-	st := a.picotoolSt.Get()
 	board := a.boardSt.Get()
-	installing := a.installing.Get()
-	rebooting := a.rebooting.Get()
 
-	row := []ui.View{ui.Text("picotool:").Small()}
-	if st.Installed {
-		label := st.Path
-		if st.Version != "" {
-			label = fmt.Sprintf("%s  (%s)", st.Path, st.Version)
-		}
-		row = append(row, ui.Text(label).Small())
-	} else {
-		row = append(row, ui.Text("not installed — drive-copy fallback only").Small())
-		if installing {
-			row = append(row, ui.Button("Installing...").Outline())
+	row := []ui.View{}
+	if runtime.GOOS == "linux" {
+		if a.udevOK.Get() {
+			row = append(row, ui.Text("udev: rules installed").Small())
 		} else {
-			row = append(row, ui.Button("Install picotool").OnClick(a.onInstallPicotool))
+			row = append(row, ui.Text("udev: rules missing — run `rpasm doctor` for install command").Small())
 		}
+		row = append(row, ui.Spacer())
 	}
-
-	row = append(row, ui.Spacer())
-
-	// Board badge — refreshed by the background poller in run().
 	if board.InBootsel {
 		row = append(row, ui.Text("Board: in BOOTSEL @ "+board.Mountpoint).Small().Bold())
 	} else {
 		row = append(row, ui.Text("Board: not detected").Small())
 	}
-
-	// Reset-to-BOOTSEL only useful when picotool is installed and a board is
-	// presumably *running* (i.e. NOT in BOOTSEL — it's already there if it is).
-	// We show it whenever picotool exists; picotool errors clearly if there's
-	// nothing to reboot.
-	if st.Installed {
-		if rebooting {
-			row = append(row, ui.Button("Resetting...").Outline())
-		} else {
-			row = append(row, ui.Button("Reset to BOOTSEL").OnClick(a.onResetToBootsel))
-		}
-	}
 	return ui.HStack(row...).Spacing(ui.SpaceMd).Center()
 }
 
-func (a *appState) onResetToBootsel() {
-	if a.rebooting.Get() {
-		return
+// detectUdevRule reports whether our udev rule file exists. Always true on
+// non-Linux hosts (no udev to install).
+func detectUdevRule() bool {
+	if runtime.GOOS != "linux" {
+		return true
 	}
-	a.rebooting.Set(true)
-	a.activeTab.Set("output")
-	a.log("=== reset to BOOTSEL (picotool reboot -f -u) ===")
-	a.status.Set("Resetting board to BOOTSEL...")
-	go func() {
-		defer a.rebooting.Set(false)
-		w := &lineLogger{emit: a.log}
-		err := picotool.Reboot(w, w)
-		w.flush()
-		if err != nil {
-			a.status.Set("Reset failed.")
-			a.log("ERROR: " + err.Error())
-			return
-		}
-		a.status.Set("Board rebooted to BOOTSEL.")
-	}()
-}
-
-func (a *appState) onInstallPicotool() {
-	if a.installing.Get() {
-		return
-	}
-	a.installing.Set(true)
-	a.activeTab.Set("output")
-	a.logLines.Set([]string{})
-	a.log("=== installing picotool ===")
-	a.status.Set("Installing picotool...")
-	go func() {
-		defer a.installing.Set(false)
-		w := &lineLogger{emit: a.log}
-		err := picotool.Install(&picotool.Options{
-			Logf:   a.log,
-			Stdout: w,
-			Stderr: w,
-		})
-		w.flush()
-		if err != nil {
-			a.status.Set("picotool install failed.")
-			a.log("ERROR: " + err.Error())
-			return
-		}
-		// Re-detect to refresh path/version display.
-		a.picotoolSt.Set(picotool.Detect())
-		a.status.Set("picotool installed. Re-run Flash to use it.")
-	}()
+	_, err := os.Stat(udevRulePath)
+	return err == nil
 }
 
 // topBar adapts to window width:

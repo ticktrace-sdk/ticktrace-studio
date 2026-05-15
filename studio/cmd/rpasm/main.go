@@ -24,6 +24,10 @@ func main() {
 		os.Exit(cmdBuild(os.Args[2:]))
 	case "flash":
 		os.Exit(cmdFlash(os.Args[2:]))
+	case "reboot":
+		os.Exit(cmdReboot(os.Args[2:]))
+	case "info":
+		os.Exit(cmdInfo(os.Args[2:]))
 	case "doctor":
 		os.Exit(cmdDoctor(os.Args[2:]))
 	case "-h", "--help", "help":
@@ -41,7 +45,9 @@ func usage() {
 usage:
   rpasm validate [--root DIR] <project.toml>
   rpasm build    [--root DIR] [--out DIR] [-v] <project.toml>
-  rpasm flash    [--root DIR] [--method picotool|drive] <project.toml>
+  rpasm flash    [--root DIR] [--method rpasmboot|drive] <project.toml>
+  rpasm reboot   [--bootsel]
+  rpasm info
   rpasm doctor   [--root DIR]
 
 Paths in project and catalog TOML are resolved relative to --root (default: studio module root, auto-detected from CWD).
@@ -167,7 +173,7 @@ func cmdBuild(args []string) int {
 func cmdFlash(args []string) int {
 	fs := flag.NewFlagSet("flash", flag.ExitOnError)
 	root := fs.String("root", defaultRoot(), "studio module root")
-	method := fs.String("method", "auto", "flash method: auto | picotool | drive")
+	method := fs.String("method", "auto", "flash method: auto | rpasmboot | drive")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
@@ -190,12 +196,12 @@ func cmdFlash(args []string) int {
 	switch *method {
 	case "auto", "":
 		prefer = ""
-	case "picotool":
-		prefer = flash.MethodPicotool
+	case "rpasmboot":
+		prefer = flash.MethodRpasmboot
 	case "drive":
 		prefer = flash.MethodDrive
 	default:
-		fmt.Fprintf(os.Stderr, "unknown method %q (auto | picotool | drive)\n", *method)
+		fmt.Fprintf(os.Stderr, "unknown method %q (auto | rpasmboot | drive)\n", *method)
 		return 2
 	}
 
@@ -239,6 +245,10 @@ func cmdDoctor(args []string) int {
 		fmt.Printf("  as:      %s\n           %s\n", tc.As, tc.Version(tc.As))
 		fmt.Printf("  ld:      %s\n           %s\n", tc.Ld, tc.Version(tc.Ld))
 		fmt.Printf("  objcopy: %s\n           %s\n", tc.Objcopy, tc.Version(tc.Objcopy))
+	}
+	fmt.Println()
+	if err := checkBoard(); err != nil {
+		rc = 1
 	}
 	return rc
 }

@@ -1,0 +1,104 @@
+package main
+
+import (
+	"flag"
+	"fmt"
+	"os"
+	"runtime"
+
+	"github.com/amken3d/rp-asm/studio/internal/rpasmboot"
+	"github.com/amken3d/rp-asm/studio/internal/usbx"
+)
+
+const udevRulePath = "/etc/udev/rules.d/99-rpasmboot.rules"
+
+const udevRuleContent = `# rpasmboot — Raspberry Pi RP2 BOOTSEL USB access for non-root users
+SUBSYSTEM=="usb", ATTRS{idVendor}=="2e8a", MODE="0666", TAG+="uaccess"
+`
+
+// checkBoard reports udev state (Linux only) and lists any attached BOOTSEL
+// devices. Returns non-nil when an actionable problem is present (e.g. udev
+// rule missing) so callers can use it as an exit-code signal.
+func checkBoard() error {
+	fmt.Println("[board]")
+	if runtime.GOOS == "linux" {
+		if _, err := os.Stat(udevRulePath); err == nil {
+			fmt.Printf("  udev:    %s present\n", udevRulePath)
+		} else {
+			fmt.Printf("  udev:    %s missing — non-root flashing will fail with EACCES\n", udevRulePath)
+			fmt.Println("  to install, run:")
+			fmt.Printf("    sudo tee %s > /dev/null <<'RULE'\n%sRULE\n", udevRulePath, udevRuleContent)
+			fmt.Println("    sudo udevadm control --reload && sudo udevadm trigger")
+		}
+	}
+	cands, err := usbx.Enumerate()
+	if err != nil {
+		fmt.Printf("  ERROR enumerating USB: %s\n", err)
+		return err
+	}
+	if len(cands) == 0 {
+		fmt.Println("  boards:  none in BOOTSEL right now (hold BOOTSEL while plugging in to enter)")
+		return nil
+	}
+	for _, c := range cands {
+		fmt.Printf("  board:   %s  vid:%04x pid:%04x serial:%s\n",
+			c.Info.BusAddr, c.Info.Vendor, c.Info.Product, c.Info.Serial)
+	}
+	return nil
+}
+
+func cmdReboot(args []string) int {
+	fs := flag.NewFlagSet("reboot", flag.ExitOnError)
+	bootsel := fs.Bool("bootsel", false, "reboot into BOOTSEL instead of the application")
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	dev, err := usbx.Open(usbx.OpenOptions{})
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	defer dev.Close()
+
+	c := rpasmboot.NewClient(dev)
+	if err := c.IfReset(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	var rerr error
+	if *bootsel {
+		rerr = c.RebootToBootsel()
+		fmt.Fprintln(os.Stderr, "rebooting into BOOTSEL")
+	} else {
+		rerr = c.RebootToApp()
+		fmt.Fprintln(os.Stderr, "rebooting into app")
+	}
+	// REBOOT2 races device disappearance; treat transport errors as soft.
+	if rerr != nil {
+		fmt.Fprintf(os.Stderr, "reboot returned %v (device likely already detached)\n", rerr)
+	}
+	return 0
+}
+
+func cmdInfo(args []string) int {
+	fs := flag.NewFlagSet("info", flag.ExitOnError)
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	cands, err := usbx.Enumerate()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	if len(cands) == 0 {
+		fmt.Fprintln(os.Stderr, "no RP2350 BOOTSEL devices found")
+		return 1
+	}
+	for _, c := range cands {
+		fmt.Printf("device:  %s\n", c.Info.BusAddr)
+		fmt.Printf("  vid:    0x%04x\n", c.Info.Vendor)
+		fmt.Printf("  pid:    0x%04x\n", c.Info.Product)
+		fmt.Printf("  serial: %s\n", c.Info.Serial)
+	}
+	return 0
+}

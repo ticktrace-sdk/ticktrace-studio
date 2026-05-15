@@ -1,8 +1,7 @@
 // Package flash copies a UF2 image to an RP2350 in BOOTSEL mode.
 //
 // Two strategies, tried in order:
-//  1. picotool load (preferred — works regardless of mount, can also reboot
-//     a running device into BOOTSEL via USB).
+//  1. rpasmboot — our in-tree PICOBOOT client (preferred; zero external deps).
 //  2. Direct file copy to a BOOTSEL-mounted drive (RPI-RP2 / RP2350 label).
 package flash
 
@@ -12,7 +11,6 @@ import (
 	"fmt"
 	"io"
 	"os"
-	"os/exec"
 	"path/filepath"
 	"strings"
 )
@@ -20,8 +18,8 @@ import (
 type Method string
 
 const (
-	MethodPicotool Method = "picotool"
-	MethodDrive    Method = "drive"
+	MethodRpasmboot Method = "rpasmboot"
+	MethodDrive     Method = "drive"
 )
 
 type Result struct {
@@ -33,65 +31,38 @@ type Options struct {
 	Uf2Path string
 	Prefer  Method // "" = auto
 	Log     func(string)
-	// Stdout/Stderr override where picotool's subprocess output goes. If nil,
-	// falls back to os.Stdout / os.Stderr (CLI default). The GUI passes a
-	// writer that funnels lines into the build-log pane.
+	// Stdout/Stderr are retained for the drive-copy path's diagnostic output;
+	// rpasmboot logs via Log. The GUI passes writers that funnel lines into
+	// the build-log pane.
 	Stdout io.Writer
 	Stderr io.Writer
 }
 
-// Flash performs the chosen strategy. Auto = picotool first, drive fallback.
+// Flash performs the chosen strategy. Auto = rpasmboot first, drive fallback.
 func Flash(opts *Options) (*Result, error) {
 	logf := opts.Log
 	if logf == nil {
 		logf = func(string) {}
-	}
-	stdout := opts.Stdout
-	if stdout == nil {
-		stdout = os.Stdout
-	}
-	stderr := opts.Stderr
-	if stderr == nil {
-		stderr = os.Stderr
 	}
 	if _, err := os.Stat(opts.Uf2Path); err != nil {
 		return nil, fmt.Errorf("uf2 not found: %w", err)
 	}
 
 	switch opts.Prefer {
-	case MethodPicotool:
-		return doPicotool(opts.Uf2Path, logf, stdout, stderr)
+	case MethodRpasmboot:
+		return doRpasmboot(opts.Uf2Path, logf)
 	case MethodDrive:
 		return doDrive(opts.Uf2Path, logf)
 	}
 
-	if _, err := exec.LookPath("picotool"); err == nil {
-		r, err := doPicotool(opts.Uf2Path, logf, stdout, stderr)
-		if err == nil {
-			return r, nil
-		}
-		logf("picotool failed: " + err.Error())
-		logf("falling back to drive copy")
-	} else {
-		logf("picotool not on PATH; trying drive copy")
+	// Auto: rpasmboot first, drive copy fallback.
+	r, err := doRpasmboot(opts.Uf2Path, logf)
+	if err == nil {
+		return r, nil
 	}
+	logf("rpasmboot failed: " + err.Error())
+	logf("falling back to drive copy")
 	return doDrive(opts.Uf2Path, logf)
-}
-
-func doPicotool(uf2 string, logf func(string), stdout, stderr io.Writer) (*Result, error) {
-	bin, err := exec.LookPath("picotool")
-	if err != nil {
-		return nil, fmt.Errorf("picotool not installed: %w", err)
-	}
-	args := []string{"load", "-u", "-v", "-x", uf2}
-	logf(fmt.Sprintf("+ %s %s", bin, strings.Join(args, " ")))
-	cmd := exec.Command(bin, args...)
-	cmd.Stdout = stdout
-	cmd.Stderr = stderr
-	if err := cmd.Run(); err != nil {
-		return nil, err
-	}
-	return &Result{Method: MethodPicotool, Target: bin}, nil
 }
 
 func doDrive(uf2 string, logf func(string)) (*Result, error) {
