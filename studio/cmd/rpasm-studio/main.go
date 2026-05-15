@@ -561,9 +561,15 @@ func (a *appState) applyProject(p *project.Project) {
 		} else {
 			a.log("[applyProject] custom branch: UserSource.Files is empty")
 		}
-		// Restore feature toggles.
+		// Restore feature toggles — only for symbols the TOML explicitly
+		// mentions. A missing key returns false from p.Features which
+		// would otherwise wrongly *override* catalog defaults (e.g. STARTUP
+		// is default=true; if the TOML doesn't list it, we must not flip
+		// it off). The comma-ok lookup distinguishes "absent" from "false".
 		for sym, cb := range a.checks {
-			cb.SetValue(p.Features[sym])
+			if v, ok := p.Features[sym]; ok {
+				cb.SetValue(v)
+			}
 		}
 	}
 	a.log(fmt.Sprintf("[applyProject] DONE mode=%s, a.mode.Get()=%s", mode, a.mode.Get()))
@@ -735,16 +741,56 @@ func (a *appState) topBarActions() []ui.View {
 	}
 }
 
+// selectedModulesView renders the currently-checked modules as a wrapping
+// row of badges so the user can see what the next Build will pull in
+// without scrolling through the full Features checkbox grid. Updates each
+// frame because checkbox state can change between renders.
+func (a *appState) selectedModulesView() ui.View {
+	const perRow = 6
+	var syms []string
+	for _, m := range a.modules {
+		if cb, ok := a.checks[m.Symbol]; ok && cb.Value() {
+			syms = append(syms, m.Symbol)
+		}
+	}
+	header := ui.Text(fmt.Sprintf("Selected modules (%d):", len(syms))).Small().Bold()
+	if len(syms) == 0 {
+		return ui.VStack(
+			header,
+			ui.Text("(none — user source will be built standalone)").Small(),
+		).Spacing(ui.SpaceXS)
+	}
+	var rows []ui.View
+	rows = append(rows, header)
+	for i := 0; i < len(syms); i += perRow {
+		end := i + perRow
+		if end > len(syms) {
+			end = len(syms)
+		}
+		row := make([]ui.View, 0, end-i)
+		for _, s := range syms[i:end] {
+			row = append(row, ui.Badge(s).Secondary())
+		}
+		rows = append(rows, ui.HStack(row...).Spacing(ui.SpaceXS))
+	}
+	return ui.VStack(rows...).Spacing(ui.SpaceXS)
+}
+
 func (a *appState) featurePane() ui.View {
 	sections := []ui.View{
 		ui.Text("Source").Subtitle(),
 		ui.Divider(),
 		ui.Text("Path to your .S file (resolved relative to SDK root):").Small(),
 		a.userSourceInput,
+	}
+	if strings.TrimSpace(a.userSourceInput.Value()) != "" {
+		sections = append(sections, a.selectedModulesView())
+	}
+	sections = append(sections,
 		ui.Spacer(),
 		ui.Text("Features").Subtitle(),
 		ui.Divider(),
-	}
+	)
 	for _, cat := range a.categories {
 		sections = append(sections, ui.Text(prettyCategory(cat)).Bold())
 		for _, m := range a.modules {
@@ -1029,9 +1075,35 @@ func (a *appState) runBuild() {
 	a.log("ELF " + result.Elf)
 	a.log("BIN " + result.Bin)
 	a.log("UF2 " + result.Uf2)
+	a.logMemorySummary(result)
 	a.memory.Set(result.Memory)
 	a.bootloader.Set(result.Bootloader)
 	a.status.Set("Build succeeded.")
+}
+
+// logMemorySummary dumps the same content the Memory tab renders so it ends
+// up in the (stderr-mirrored) log, making the values copyable.
+func (a *appState) logMemorySummary(r *build.Result) {
+	if r.Memory != nil && len(r.Memory.Regions) > 0 {
+		a.log("Memory regions:")
+		for _, reg := range r.Memory.Regions {
+			a.log(fmt.Sprintf("  %-10s %10s / %-10s  %5.2f%%",
+				reg.Name+":", humanBytes(reg.Used), humanBytes(reg.Size), reg.Percent()))
+		}
+	}
+	if r.Bootloader != nil && len(r.Bootloader.Stages) > 0 {
+		a.log("Bootloader chain:")
+		for _, s := range r.Bootloader.Stages {
+			a.log(fmt.Sprintf("  %-10s %10s / %-10s  %5.2f%%   @ 0x%08x",
+				s.Name+":", humanBytes(s.Used), humanBytes(s.Capacity), s.Percent(), s.Base))
+		}
+	}
+	if r.Memory != nil && len(r.Memory.Sections) > 0 {
+		a.log("Sections:")
+		for _, sec := range r.Memory.Sections {
+			a.log(fmt.Sprintf("  %-22s %10s  @ 0x%08x", sec.Name, humanBytes(sec.Size), sec.Addr))
+		}
+	}
 }
 
 func (a *appState) onFlashDisabled() {
@@ -1083,6 +1155,10 @@ func (a *appState) log(s string) {
 	a.logLines.Update(func(prev []string) []string {
 		return append(prev, s)
 	})
+	// Mirror to stderr so the terminal that launched the GUI has a
+	// copy-pasteable record of everything that appears in the Output
+	// panel. Avoids needing selectable widgets just to share logs.
+	fmt.Fprintln(os.Stderr, s)
 }
 
 func (a *appState) addProblem(p Problem) {
