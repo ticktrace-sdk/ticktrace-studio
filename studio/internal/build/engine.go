@@ -24,6 +24,13 @@ type Options struct {
 	// of disappearing into the terminal.
 	Stdout io.Writer
 	Stderr io.Writer
+	// Slot selects per-slot build mode for bootloader projects. "" (default)
+	// produces the full SSBL+TSBL+app firmware UF2. "a" or "b" links the app
+	// at that slot's base and packs a slot-only UF2 (app + footer at the
+	// chosen slot addresses) for over-the-air style A/B updates that don't
+	// re-flash the bootloader. Only valid when Resolved.Project.Bootloader
+	// is set.
+	Slot string
 }
 
 type Result struct {
@@ -79,10 +86,15 @@ func Build(opts *Options) (*Result, error) {
 		objs = append(objs, objPath)
 	}
 
+	if opts.Slot != "" && opts.Resolved.Project.Bootloader == nil {
+		return nil, fmt.Errorf("--slot requires the project to have [bootloader] set")
+	}
 	var ldScript string
 	switch {
+	case opts.Slot == "b":
+		ldScript = resolve(opts.Root, ldScriptSlotB)
 	case opts.Resolved.Project.Bootloader != nil:
-		// App lives in slot A under the bootloader chain.
+		// Slot "" or "a": app links at slot A's base.
 		ldScript = resolve(opts.Root, ldScriptSlotA)
 	case opts.Resolved.Project.Layout == "flash":
 		ldScript = resolve(opts.Root, tgt.LdScriptFlash)
@@ -120,7 +132,11 @@ func Build(opts *Options) (*Result, error) {
 		if err != nil {
 			return nil, fmt.Errorf("read app bin: %w", err)
 		}
-		uf2, blUsage, err = buildBootloaderChain(opts, appBin)
+		if opts.Slot != "" {
+			uf2, blUsage, err = buildSlotOnlyUF2(opts, appBin)
+		} else {
+			uf2, blUsage, err = buildBootloaderChain(opts, appBin)
+		}
 		if err != nil {
 			return nil, fmt.Errorf("bootloader chain: %w", err)
 		}

@@ -24,6 +24,7 @@ const (
 	ldScriptSSBL    = "../link/ssbl.ld"
 	ldScriptTSBL    = "../link/tsbl.ld"
 	ldScriptSlotA   = "../link/app_at_0x10008000.ld"
+	ldScriptSlotB   = "../link/app_at_0x10080000.ld"
 	srcSSBL         = "../src/ssbl/ssbl.S"
 	srcCRC32        = "../src/crc32.S"
 	tsblSrcTemplate = "../src/tsbl/tsbl_%s.S"
@@ -104,6 +105,57 @@ func buildBootloaderChain(opts *Options, appBin []byte) (string, *BootloaderUsag
 			{Name: "TSBL-" + bl.TSBL, Base: tsblBase, Used: uint64(len(tsblBytes)), Capacity: capTSBL},
 			{Name: "Slot A", Base: slotABase, Used: uint64(len(appBin)), Capacity: capSlot},
 			{Name: "Slot B", Base: slotBBase, Used: 0, Capacity: capSlot},
+		},
+	}
+	return fwPath, usage, nil
+}
+
+// buildSlotOnlyUF2 packs just the app + its footer at the chosen slot's
+// addresses, skipping SSBL/TSBL entirely. Used for A/B field updates that
+// shouldn't disturb the bootloader. Slot A app uses seq=1; slot B uses
+// seq=2 (so TSBL-ab's higher-seq-wins selector picks B over A by default —
+// the freshly-pushed slot).
+func buildSlotOnlyUF2(opts *Options, appBin []byte) (string, *BootloaderUsage, error) {
+	var (
+		base, footerAddr uint32
+		seq              uint32
+		stageName        string
+		fileTag          string
+	)
+	switch opts.Slot {
+	case "a":
+		base, footerAddr = slotABase, slotAFooter
+		seq, stageName, fileTag = 1, "Slot A", "slot_a"
+	case "b":
+		// Slot B footer = last 256 B of [0x10080000, 0x10080000+480 KiB).
+		base, footerAddr = slotBBase, slotBBase+uint32(capSlot)-256
+		seq, stageName, fileTag = 2, "Slot B", "slot_b"
+	default:
+		return "", nil, fmt.Errorf("buildSlotOnlyUF2: unknown slot %q", opts.Slot)
+	}
+
+	footer := manifest.FooterData{Seq: seq, Status: manifest.StatusGood}
+	footer.Compute(appBin)
+
+	pieces := []firmware.Piece{
+		{Name: "app", LoadAddr: base, Data: appBin},
+		{Name: "app_footer", LoadAddr: footerAddr, Data: footer.Marshal()},
+	}
+
+	fwPath := filepath.Join(opts.OutDir,
+		fileTag+"_"+opts.Resolved.Project.Name+".uf2")
+	f, err := os.Create(fwPath)
+	if err != nil {
+		return "", nil, err
+	}
+	defer f.Close()
+	if err := firmware.Pack(f, pieces); err != nil {
+		return "", nil, err
+	}
+
+	usage := &BootloaderUsage{
+		Stages: []BootloaderStage{
+			{Name: stageName, Base: base, Used: uint64(len(appBin)), Capacity: capSlot},
 		},
 	}
 	return fwPath, usage, nil

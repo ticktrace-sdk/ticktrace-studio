@@ -45,7 +45,7 @@ func usage() {
 usage:
   rpasm validate [--root DIR] <project.toml>
   rpasm build    [--root DIR] [--out DIR] [-v] <project.toml>
-  rpasm flash    [--method rpasmboot|drive] (--uf2 <path> | [--root DIR] <project.toml>)
+  rpasm flash    [--method rpasmboot|drive] [--slot a|b] (--uf2 <path> | [--root DIR] <project.toml>)
   rpasm reboot   [--bootsel]
   rpasm info
   rpasm doctor   [--root DIR]
@@ -127,11 +127,16 @@ func cmdBuild(args []string) int {
 	root := fs.String("root", defaultRoot(), "studio module root")
 	out := fs.String("out", "", "build output directory (default: <root>/build/<project>)")
 	verbose := fs.Bool("v", false, "echo tool invocations")
+	slot := fs.String("slot", "", "for [bootloader] projects: build a slot-only UF2 (a|b). Default: full chain.")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
 	if fs.NArg() != 1 {
 		fmt.Fprintln(os.Stderr, "build: expected exactly one project file")
+		return 2
+	}
+	if *slot != "" && *slot != "a" && *slot != "b" {
+		fmt.Fprintf(os.Stderr, "--slot must be \"a\" or \"b\", got %q\n", *slot)
 		return 2
 	}
 	res, err := loadResolved(*root, fs.Arg(0))
@@ -154,6 +159,7 @@ func cmdBuild(args []string) int {
 		OutDir:    outDir,
 		Toolchain: tc,
 		Verbose:   *verbose,
+		Slot:      *slot,
 	})
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err)
@@ -181,7 +187,16 @@ func cmdFlash(args []string) int {
 	root := fs.String("root", defaultRoot(), "studio module root")
 	method := fs.String("method", "auto", "flash method: auto | rpasmboot | drive")
 	uf2Path := fs.String("uf2", "", "flash this UF2 directly (skips project resolution)")
+	slot := fs.String("slot", "", "for [bootloader] projects: push only this slot (a|b). Triggers a rebuild and flashes the slot-only UF2.")
 	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	if *slot != "" && *slot != "a" && *slot != "b" {
+		fmt.Fprintf(os.Stderr, "--slot must be \"a\" or \"b\", got %q\n", *slot)
+		return 2
+	}
+	if *slot != "" && *uf2Path != "" {
+		fmt.Fprintln(os.Stderr, "flash: --slot and --uf2 are mutually exclusive")
 		return 2
 	}
 
@@ -199,10 +214,38 @@ func cmdFlash(args []string) int {
 			fmt.Fprintln(os.Stderr, err)
 			return 1
 		}
-		uf2 = filepath.Join(*root, "build", res.Project.Name, res.Project.Name+".uf2")
-		if _, err := os.Stat(uf2); err != nil {
-			fmt.Fprintf(os.Stderr, "uf2 not built yet: %s\n(run `rpasm build %s` first)\n", uf2, fs.Arg(0))
-			return 1
+		if *slot != "" {
+			// Per-slot mode: rebuild for the chosen slot, flash the slot-only UF2.
+			tc, err := build.Detect(res.Target.ToolchainPrefix)
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1
+			}
+			outDir := filepath.Join(*root, "build", res.Project.Name)
+			result, err := build.Build(&build.Options{
+				Resolved:  res,
+				Root:      *root,
+				OutDir:    outDir,
+				Toolchain: tc,
+				Slot:      *slot,
+			})
+			if err != nil {
+				fmt.Fprintln(os.Stderr, err)
+				return 1
+			}
+			uf2 = result.Uf2
+			fmt.Fprintf(os.Stderr, "built slot-%s UF2: %s\n", *slot, uf2)
+		} else {
+			// Standard path: flash whatever the project's last build produced.
+			uf2Name := res.Project.Name + ".uf2"
+			if res.Project.Bootloader != nil {
+				uf2Name = "firmware_" + res.Project.Name + ".uf2"
+			}
+			uf2 = filepath.Join(*root, "build", res.Project.Name, uf2Name)
+			if _, err := os.Stat(uf2); err != nil {
+				fmt.Fprintf(os.Stderr, "uf2 not built yet: %s\n(run `rpasm build %s` first)\n", uf2, fs.Arg(0))
+				return 1
+			}
 		}
 	default:
 		fmt.Fprintln(os.Stderr, "flash: expected one project file or --uf2 <path>")
