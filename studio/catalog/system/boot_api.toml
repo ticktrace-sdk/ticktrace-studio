@@ -1,0 +1,14 @@
+symbol = "BOOT_API"
+name = "Boot API"
+category = "system"
+order = 85
+default = false
+description = """
+App-side functions for talking to the rp-asm TSBL. Enable when the project
+uses [bootloader] and wants to call boot_confirm() (to opt out of rollback),
+boot_request_dfu() (to jump into the TSBL's DFU mode), or
+boot_request_bootsel() (to drop to mask-ROM BOOTSEL on demand). Pure flash
++ SRAM cost is a few dozen bytes per function actually used; --gc-sections
+drops the rest.
+"""
+sources = ["../src/boot_api.S"]

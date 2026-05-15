@@ -23,6 +23,16 @@ func Load(path string) (*Project, error) {
 	if p.Layout != "flash" && p.Layout != "sram" {
 		return nil, fmt.Errorf("%s: layout must be \"flash\" or \"sram\", got %q", path, p.Layout)
 	}
+	if p.Bootloader != nil {
+		if p.Layout != "flash" {
+			return nil, fmt.Errorf("%s: bootloader requires layout=\"flash\", got %q", path, p.Layout)
+		}
+		switch p.Bootloader.TSBL {
+		case "bypass", "ab":
+		default:
+			return nil, fmt.Errorf("%s: bootloader.tsbl must be \"bypass\" or \"ab\", got %q", path, p.Bootloader.TSBL)
+		}
+	}
 	if p.Features == nil {
 		p.Features = make(map[string]bool)
 	}

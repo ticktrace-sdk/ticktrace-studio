@@ -1,0 +1,13 @@
+name = "blinky_bl"
+target = "rp2350-arm"
+layout = "flash"
+rpasm_version = "1.0"
+
+[bootloader]
+tsbl = "ab"
+
+[features]
+BOOT_API = true
+
+[user_source]
+files = ["../src/main.S"]
