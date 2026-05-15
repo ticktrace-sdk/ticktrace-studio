@@ -154,7 +154,11 @@ func cmdBuild(args []string) int {
 	}
 	outDir := *out
 	if outDir == "" {
-		outDir = filepath.Join(*root, "build", res.Project.Name)
+		// Default to the SDK-root build tree (the parent of the studio
+		// module). Studio's per-project subdir (build/<name>/) doesn't
+		// collide with the Makefile's flat layout (build/<name>.uf2,
+		// build/<name>_flash.uf2, ...), so both tools can share one tree.
+		outDir = filepath.Join(filepath.Dir(*root), "build", res.Project.Name)
 	}
 	result, err := build.Build(&build.Options{
 		Resolved:  res,
@@ -224,7 +228,7 @@ func cmdFlash(args []string) int {
 				fmt.Fprintln(os.Stderr, err)
 				return 1
 			}
-			outDir := filepath.Join(*root, "build", res.Project.Name)
+			outDir := filepath.Join(filepath.Dir(*root), "build", res.Project.Name)
 			result, err := build.Build(&build.Options{
 				Resolved:  res,
 				Root:      *root,
@@ -244,7 +248,7 @@ func cmdFlash(args []string) int {
 			if res.Project.Bootloader != nil {
 				uf2Name = "firmware_" + res.Project.Name + ".uf2"
 			}
-			uf2 = filepath.Join(*root, "build", res.Project.Name, uf2Name)
+			uf2 = filepath.Join(filepath.Dir(*root), "build", res.Project.Name, uf2Name)
 			if _, err := os.Stat(uf2); err != nil {
 				fmt.Fprintf(os.Stderr, "uf2 not built yet: %s\n(run `rpasm build %s` first)\n", uf2, fs.Arg(0))
 				return 1

@@ -54,7 +54,8 @@ type appState struct {
 	categories []string
 
 	// Target dropdown — populated from catalog.Targets.
-	targetDropdown *ui.DropdownView
+	targetDropdown     *ui.DropdownView
+	bootloaderDropdown *ui.DropdownView
 	targetNames    []string
 
 	// Example picker — dropdown is populated from <parent>/examples/*.S.
@@ -101,10 +102,6 @@ type appState struct {
 	problems  *ui.State[[]Problem]
 	memory     *ui.State[*build.MemoryUsage]
 	bootloader *ui.State[*build.BootloaderUsage]
-	// loadedBootloader carries the [bootloader] section from the most-recently
-	// Load-ed project TOML into the next Build, since the GUI has no widget
-	// for the field yet. Cleared on mode tab change.
-	loadedBootloader *project.Bootloader
 	activeTab  *ui.State[string] // "output" | "problems" | "memory"
 	building *ui.State[bool]
 	flashing *ui.State[bool]
@@ -169,6 +166,12 @@ func newApp(root string, cat *catalog.Catalog) *appState {
 	// flips the default; user can still override per-build.
 	layoutDropdown := ui.Dropdown("flash", "sram").SetSelected(1) // 1 = sram
 
+	// Bootloader knob. Index 0 = none (default; produces <name>.uf2),
+	// 1 = bypass (single-slot chain), 2 = ab (A/B + rollback). The build
+	// engine requires layout=flash when this is non-none — set both
+	// together or you'll get a build-time error.
+	bootloaderDropdown := ui.Dropdown("(no bootloader)", "bypass", "ab").SetSelected(0)
+
 	nameInput := ui.Input().Placeholder("Project name")
 	nameInput.SetValue("blinky")
 
@@ -191,7 +194,8 @@ func newApp(root string, cat *catalog.Catalog) *appState {
 		modules:        modOrder,
 		checks:         checks,
 		categories:     cats,
-		targetDropdown:   tgtDropdown,
+		targetDropdown:     tgtDropdown,
+		bootloaderDropdown: bootloaderDropdown,
 		targetNames:      tgtNames,
 		exampleDropdown:  exampleDropdown,
 		allExampleNames:  exampleNames,
@@ -236,10 +240,11 @@ func newApp(root string, cat *catalog.Catalog) *appState {
 					a.customLayout = cur
 				}
 			}
-			// Switching modes invalidates the stashed [bootloader] from any
-			// prior Load — the user is effectively starting a new project
-			// shape, so don't silently carry the field across.
-			a.loadedBootloader = nil
+			// Switching modes resets the bootloader dropdown to "(no bootloader)"
+			// since Examples mode never wants a chain build.
+			if a.bootloaderDropdown != nil {
+				a.bootloaderDropdown.SetSelected(0)
+			}
 			var next string
 			if idx == 1 {
 				a.mode.Set("custom")
@@ -270,10 +275,10 @@ func (a *appState) expectedUf2() string {
 	// produce <name>.uf2. Match build.Build's output naming exactly so the
 	// Flash button enables and the Flash action targets the right file.
 	fname := name + ".uf2"
-	if a.loadedBootloader != nil {
+	if a.currentBootloader() != nil {
 		fname = "firmware_" + name + ".uf2"
 	}
-	return filepath.Join(a.root, "build", name, fname)
+	return filepath.Join(filepath.Dir(a.root), "build", name, fname)
 }
 
 // derivedName mirrors runBuild's name logic exactly. Keep them in sync.
@@ -386,12 +391,6 @@ func (a *appState) onLoadProject() {
 	a.applyProject(proj)
 	a.status.Set("Loaded " + path)
 	a.log("loaded " + path)
-	mode := proj.StudioMode
-	if mode == "" {
-		mode = a.mode.Get() // post-inference value
-	}
-	a.log(fmt.Sprintf("  mode=%s, layout=%s, src=%v, bootloader=%v",
-		mode, proj.Layout, proj.UserSource.Files, proj.Bootloader))
 }
 
 // resolveProjectPath turns a user-typed path (possibly relative) into an
@@ -453,6 +452,7 @@ func (a *appState) captureProject() *project.Project {
 		RpasmVersion: "1.0",
 		StudioMode:   mode,
 		Features:     map[string]bool{},
+		Bootloader:   a.currentBootloader(),
 	}
 	if p.Name == "" {
 		if mode == "examples" {
@@ -508,9 +508,19 @@ func (a *appState) applyProject(p *project.Project) {
 			mode = "examples"
 		}
 	}
-	// Stash bootloader settings (if any) for runBuild to pick up — the GUI
-	// doesn't yet have a widget to set this field.
-	a.loadedBootloader = p.Bootloader
+	// Restore bootloader dropdown from the loaded project.
+	if a.bootloaderDropdown != nil {
+		switch {
+		case p.Bootloader == nil:
+			a.bootloaderDropdown.SetSelected(0)
+		case p.Bootloader.TSBL == "bypass":
+			a.bootloaderDropdown.SetSelected(1)
+		case p.Bootloader.TSBL == "ab":
+			a.bootloaderDropdown.SetSelected(2)
+		default:
+			a.bootloaderDropdown.SetSelected(0)
+		}
+	}
 	a.mode.Set(mode)
 	if a.modeTabBar != nil {
 		if mode == "custom" {
@@ -562,10 +572,6 @@ func (a *appState) applyProject(p *project.Project) {
 	case "custom":
 		if len(p.UserSource.Files) > 0 {
 			a.userSourceInput.SetValue(p.UserSource.Files[0])
-			a.log(fmt.Sprintf("[applyProject] set userSourceInput=%q  (now reads back %q)",
-				p.UserSource.Files[0], a.userSourceInput.Value()))
-		} else {
-			a.log("[applyProject] custom branch: UserSource.Files is empty")
 		}
 		// Restore feature toggles — only for symbols the TOML explicitly
 		// mentions. A missing key returns false from p.Features which
@@ -578,7 +584,6 @@ func (a *appState) applyProject(p *project.Project) {
 			}
 		}
 	}
-	a.log(fmt.Sprintf("[applyProject] DONE mode=%s, a.mode.Get()=%s", mode, a.mode.Get()))
 }
 
 // leftPane dispatches to the right side-content based on mode. In Examples
@@ -772,9 +777,31 @@ func (a *appState) topBarConfig() []ui.View {
 		a.layoutDropdown,
 	)
 	if mode == "custom" {
-		out = append(out, ui.Text("Name").Small(), a.nameInput)
+		out = append(out,
+			ui.Text("Bootloader").Small(),
+			a.bootloaderDropdown,
+			ui.Text("Name").Small(),
+			a.nameInput,
+		)
 	}
 	return out
+}
+
+// currentBootloader returns the project.Bootloader value implied by the
+// bootloader dropdown. Returns nil when "(no bootloader)" is selected so
+// the build engine produces a bare UF2; non-nil produces the firmware chain.
+func (a *appState) currentBootloader() *project.Bootloader {
+	if a.bootloaderDropdown == nil {
+		return nil
+	}
+	switch a.bootloaderDropdown.SelectedText() {
+	case "bypass":
+		return &project.Bootloader{TSBL: "bypass"}
+	case "ab":
+		return &project.Bootloader{TSBL: "ab"}
+	default:
+		return nil
+	}
 }
 
 // topBarActions is the action-button portion of the top bar: Build, Flash.
@@ -1044,8 +1071,6 @@ func (a *appState) onBuild() {
 
 func (a *appState) runBuild() {
 	mode := a.mode.Get()
-	a.log(fmt.Sprintf("build start: mode=%s, src=%q, nameInput=%q, bootloader=%v",
-		mode, a.userSourceInput.Value(), a.nameInput.Value(), a.loadedBootloader))
 	var name, src string
 	switch mode {
 	case "custom":
@@ -1078,7 +1103,7 @@ func (a *appState) runBuild() {
 		UserSource: project.UserSource{
 			Files: []string{src},
 		},
-		Bootloader: a.loadedBootloader,
+		Bootloader: a.currentBootloader(),
 	}
 	if proj.Name == "" {
 		proj.Name = "blinky"
@@ -1105,7 +1130,9 @@ func (a *appState) runBuild() {
 	}
 	a.log("toolchain: " + tc.As)
 
-	outDir := filepath.Join(a.root, "build", proj.Name)
+	// SDK-root build tree (parent of studio module root). Studio and the
+	// Makefile share this directory; per-project subdirs prevent collision.
+	outDir := filepath.Join(filepath.Dir(a.root), "build", proj.Name)
 	logWriter := &lineLogger{
 		emit:      a.log,
 		onProblem: a.addProblem,
