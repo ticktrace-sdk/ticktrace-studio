@@ -28,6 +28,8 @@ func main() {
 		os.Exit(cmdReboot(os.Args[2:]))
 	case "info":
 		os.Exit(cmdInfo(os.Args[2:]))
+	case "bootinfo":
+		os.Exit(cmdBootInfo(os.Args[2:]))
 	case "doctor":
 		os.Exit(cmdDoctor(os.Args[2:]))
 	case "-h", "--help", "help":
@@ -48,6 +50,7 @@ usage:
   rpasm flash    [--method rpasmboot|drive] [--slot a|b] (--uf2 <path> | [--root DIR] <project.toml>)
   rpasm reboot   [--bootsel]
   rpasm info
+  rpasm bootinfo
   rpasm doctor   [--root DIR]
 
 Paths in project and catalog TOML are resolved relative to --root (default: studio module root, auto-detected from CWD).

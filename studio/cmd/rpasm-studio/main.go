@@ -108,8 +108,11 @@ type appState struct {
 	activeTab  *ui.State[string] // "output" | "problems" | "memory"
 	building *ui.State[bool]
 	flashing *ui.State[bool]
-	udevOK   *ui.State[bool]
-	boardSt  *ui.State[flash.BoardState]
+	udevOK     *ui.State[bool]
+	boardSt    *ui.State[flash.BoardState]
+	slotInfo   *ui.State[[]flash.SlotInfo]
+	slotErr    *ui.State[string]
+	querying   *ui.State[bool]
 
 	logMu sync.Mutex
 }
@@ -211,6 +214,9 @@ func newApp(root string, cat *catalog.Catalog) *appState {
 		flashing: ui.NewState(false),
 		udevOK:   ui.NewState(detectUdevRule()),
 		boardSt:  ui.NewState(flash.DetectBoard()),
+		slotInfo: ui.NewState[[]flash.SlotInfo](nil),
+		slotErr:  ui.NewState(""),
+		querying: ui.NewState(false),
 	}
 	a.modeTabBar = ui.TabBar("Examples", "Custom Project").
 		SetSelected(0).
@@ -650,7 +656,58 @@ func (a *appState) toolsRow() ui.View {
 	} else {
 		row = append(row, ui.Text("Board: not detected").Small())
 	}
-	return ui.HStack(row...).Spacing(ui.SpaceMd).Center()
+	if a.querying.Get() {
+		row = append(row, ui.Button("Querying...").Outline())
+	} else {
+		row = append(row, ui.Button("Query slots").OnClick(a.onQuerySlots))
+	}
+	header := ui.HStack(row...).Spacing(ui.SpaceMd).Center()
+
+	// Slot-status panel below the row, shown only when we have data or an
+	// error from a recent query.
+	slots := a.slotInfo.Get()
+	errMsg := a.slotErr.Get()
+	if len(slots) == 0 && errMsg == "" {
+		return header
+	}
+	var panel []ui.View
+	if errMsg != "" {
+		panel = append(panel, ui.Text("Slot query: "+errMsg).Small())
+	}
+	for _, s := range slots {
+		panel = append(panel, ui.Text(formatSlot(s)).Small())
+	}
+	return ui.VStack(header, ui.VStack(panel...).Spacing(ui.SpaceXS)).Spacing(ui.SpaceSm)
+}
+
+func formatSlot(s flash.SlotInfo) string {
+	if !s.Valid {
+		return fmt.Sprintf("  slot %s @ 0x%08x: (empty)", s.Name, s.Base)
+	}
+	return fmt.Sprintf("  slot %s @ 0x%08x: status=%s seq=%d payload=%d B",
+		s.Name, s.Base, flash.StatusName(s.Footer.Status), s.Footer.Seq, s.Footer.PayloadSize)
+}
+
+func (a *appState) onQuerySlots() {
+	if a.querying.Get() {
+		return
+	}
+	a.querying.Set(true)
+	a.slotErr.Set("")
+	go func() {
+		defer a.querying.Set(false)
+		slots, err := flash.ReadBootInfo()
+		if err != nil {
+			a.slotErr.Set(err.Error())
+			a.slotInfo.Set(nil)
+			a.log("[bootinfo] ERROR: " + err.Error())
+			return
+		}
+		a.slotInfo.Set(slots)
+		for _, s := range slots {
+			a.log("[bootinfo] " + strings.TrimSpace(formatSlot(s)))
+		}
+	}()
 }
 
 // detectUdevRule reports whether our udev rule file exists. Always true on

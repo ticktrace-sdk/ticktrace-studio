@@ -6,6 +6,7 @@ import (
 	"os"
 	"runtime"
 
+	"github.com/amken3d/rp-asm/studio/internal/flash"
 	"github.com/amken3d/rp-asm/studio/internal/rpasmboot"
 	"github.com/amken3d/rp-asm/studio/internal/usbx"
 )
@@ -99,6 +100,27 @@ func cmdInfo(args []string) int {
 		fmt.Printf("  vid:    0x%04x\n", c.Info.Vendor)
 		fmt.Printf("  pid:    0x%04x\n", c.Info.Product)
 		fmt.Printf("  serial: %s\n", c.Info.Serial)
+	}
+	return 0
+}
+
+func cmdBootInfo(args []string) int {
+	fs := flag.NewFlagSet("bootinfo", flag.ExitOnError)
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+	slots, err := flash.ReadBootInfo()
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return 1
+	}
+	for _, s := range slots {
+		if !s.Valid {
+			fmt.Printf("slot %s @ 0x%08x: (empty — footer has no RPBL magic)\n", s.Name, s.Base)
+			continue
+		}
+		fmt.Printf("slot %s @ 0x%08x: status=%s seq=%d payload=%d B crc=0x%08x\n",
+			s.Name, s.Base, flash.StatusName(s.Footer.Status), s.Footer.Seq, s.Footer.PayloadSize, s.Footer.CRC32)
 	}
 	return 0
 }
