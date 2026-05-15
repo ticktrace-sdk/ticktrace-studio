@@ -45,7 +45,7 @@ func usage() {
 usage:
   rpasm validate [--root DIR] <project.toml>
   rpasm build    [--root DIR] [--out DIR] [-v] <project.toml>
-  rpasm flash    [--root DIR] [--method rpasmboot|drive] <project.toml>
+  rpasm flash    [--method rpasmboot|drive] (--uf2 <path> | [--root DIR] <project.toml>)
   rpasm reboot   [--bootsel]
   rpasm info
   rpasm doctor   [--root DIR]
@@ -174,22 +174,33 @@ func cmdFlash(args []string) int {
 	fs := flag.NewFlagSet("flash", flag.ExitOnError)
 	root := fs.String("root", defaultRoot(), "studio module root")
 	method := fs.String("method", "auto", "flash method: auto | rpasmboot | drive")
+	uf2Path := fs.String("uf2", "", "flash this UF2 directly (skips project resolution)")
 	if err := fs.Parse(args); err != nil {
 		return 2
 	}
-	if fs.NArg() != 1 {
-		fmt.Fprintln(os.Stderr, "flash: expected exactly one project file")
+
+	var uf2 string
+	switch {
+	case *uf2Path != "":
+		if fs.NArg() != 0 {
+			fmt.Fprintln(os.Stderr, "flash: --uf2 and a project file are mutually exclusive")
+			return 2
+		}
+		uf2 = *uf2Path
+	case fs.NArg() == 1:
+		res, err := loadResolved(*root, fs.Arg(0))
+		if err != nil {
+			fmt.Fprintln(os.Stderr, err)
+			return 1
+		}
+		uf2 = filepath.Join(*root, "build", res.Project.Name, res.Project.Name+".uf2")
+		if _, err := os.Stat(uf2); err != nil {
+			fmt.Fprintf(os.Stderr, "uf2 not built yet: %s\n(run `rpasm build %s` first)\n", uf2, fs.Arg(0))
+			return 1
+		}
+	default:
+		fmt.Fprintln(os.Stderr, "flash: expected one project file or --uf2 <path>")
 		return 2
-	}
-	res, err := loadResolved(*root, fs.Arg(0))
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
-		return 1
-	}
-	uf2 := filepath.Join(*root, "build", res.Project.Name, res.Project.Name+".uf2")
-	if _, err := os.Stat(uf2); err != nil {
-		fmt.Fprintf(os.Stderr, "uf2 not built yet: %s\n(run `rpasm build %s` first)\n", uf2, fs.Arg(0))
-		return 1
 	}
 
 	var prefer flash.Method

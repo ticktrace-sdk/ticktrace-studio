@@ -5,7 +5,7 @@ go 1.26.2
 require (
 	gioui.org v0.9.0
 	github.com/BurntSushi/toml v1.6.0
-	github.com/amken3d/immygo v0.0.0-00010101000000-000000000000
+	github.com/amken3d/immygo v0.1.6
 )
 
 require (
@@ -19,5 +19,3 @@ require (
 	golang.org/x/sys v0.40.0 // indirect
 	golang.org/x/text v0.33.0 // indirect
 )
-
-replace github.com/amken3d/immygo => /home/hkeni/repos/Immygo
