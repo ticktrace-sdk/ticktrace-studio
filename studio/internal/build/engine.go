@@ -34,6 +34,9 @@ type Result struct {
 	// Memory is best-effort. Nil or partial if ld didn't print memory usage or
 	// `size` wasn't available; build still succeeded.
 	Memory *MemoryUsage
+	// Bootloader is populated only for projects with [bootloader] set —
+	// breaks the firmware UF2 down by stage.
+	Bootloader *BootloaderUsage
 }
 
 func Build(opts *Options) (*Result, error) {
@@ -108,13 +111,16 @@ func Build(opts *Options) (*Result, error) {
 		return nil, fmt.Errorf("objcopy: %w", err)
 	}
 
-	var uf2 string
+	var (
+		uf2       string
+		blUsage   *BootloaderUsage
+	)
 	if opts.Resolved.Project.Bootloader != nil {
 		appBin, err := os.ReadFile(bin)
 		if err != nil {
 			return nil, fmt.Errorf("read app bin: %w", err)
 		}
-		uf2, err = buildBootloaderChain(opts, appBin)
+		uf2, blUsage, err = buildBootloaderChain(opts, appBin)
 		if err != nil {
 			return nil, fmt.Errorf("bootloader chain: %w", err)
 		}
@@ -136,7 +142,7 @@ func Build(opts *Options) (*Result, error) {
 		Regions:  parseMemoryRegions(ldCapture.String()),
 		Sections: runSize(opts.Toolchain.Size, elf, workDir),
 	}
-	return &Result{Objects: objs, Elf: elf, Bin: bin, Uf2: uf2, Memory: mem}, nil
+	return &Result{Objects: objs, Elf: elf, Bin: bin, Uf2: uf2, Memory: mem, Bootloader: blUsage}, nil
 }
 
 func resolve(root, p string) string {

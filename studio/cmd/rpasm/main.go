@@ -164,7 +164,13 @@ func cmdBuild(args []string) int {
 	fmt.Printf("  UF2  %s\n", result.Uf2)
 	if result.Memory != nil {
 		for _, r := range result.Memory.Regions {
-			fmt.Printf("  %-6s %9d / %9d B  (%.2f%%)\n", r.Name+":", r.Used, r.Size, r.Percent())
+			fmt.Printf("  %-8s %9d / %9d B  (%.2f%%)\n", r.Name+":", r.Used, r.Size, r.Percent())
+		}
+	}
+	if result.Bootloader != nil {
+		for _, s := range result.Bootloader.Stages {
+			fmt.Printf("  %-8s %9d / %9d B  (%.2f%%)  @ 0x%08x\n",
+				s.Name+":", s.Used, s.Capacity, s.Percent(), s.Base)
 		}
 	}
 	return 0

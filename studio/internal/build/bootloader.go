@@ -29,14 +29,26 @@ const (
 	tsblSrcTemplate = "../src/tsbl/tsbl_%s.S"
 )
 
+// Slot capacities (mirror include/bootloader.inc). SSBL gets the first 4 KiB.
+// TSBL gets 24 KiB ending at the footer at 0x10006F00 (so its payload caps
+// at 24 KiB - 256 B; we report the full slot as capacity since the footer
+// is the slot's own metadata). Slot A/B are 480 KiB each.
+const (
+	capSSBL  uint64 = 0x1000   // 4 KiB
+	capTSBL  uint64 = 0x6000   // 24 KiB
+	capSlot  uint64 = 0x78000  // 480 KiB
+	slotBBase uint32 = 0x10080000
+)
+
 // buildBootloaderChain builds SSBL and the chosen TSBL flavor, computes
 // footers, and stitches them with the app binary into firmware_<name>.uf2.
-// Returns the final UF2 path. The app .bin is already produced by the
-// caller; only the linker script is the caller's responsibility to pick.
-func buildBootloaderChain(opts *Options, appBin []byte) (string, error) {
+// Returns the final UF2 path and a BootloaderUsage breakdown. The app .bin
+// is already produced by the caller; only the linker script is the caller's
+// responsibility to pick.
+func buildBootloaderChain(opts *Options, appBin []byte) (string, *BootloaderUsage, error) {
 	bl := opts.Resolved.Project.Bootloader
 	if bl == nil {
-		return "", fmt.Errorf("buildBootloaderChain called without [bootloader]")
+		return "", nil, fmt.Errorf("buildBootloaderChain called without [bootloader]")
 	}
 
 	stdout, stderr := stdouts(opts)
@@ -46,7 +58,7 @@ func buildBootloaderChain(opts *Options, appBin []byte) (string, error) {
 		ldScriptSSBL,
 		stdout, stderr)
 	if err != nil {
-		return "", fmt.Errorf("ssbl: %w", err)
+		return "", nil, fmt.Errorf("ssbl: %w", err)
 	}
 
 	tsblSrc := fmt.Sprintf(tsblSrcTemplate, bl.TSBL)
@@ -55,7 +67,7 @@ func buildBootloaderChain(opts *Options, appBin []byte) (string, error) {
 		ldScriptTSBL,
 		stdout, stderr)
 	if err != nil {
-		return "", fmt.Errorf("tsbl %s: %w", bl.TSBL, err)
+		return "", nil, fmt.Errorf("tsbl %s: %w", bl.TSBL, err)
 	}
 
 	tsblFooter := manifest.FooterData{Seq: 1, Status: manifest.StatusGood}
@@ -79,13 +91,22 @@ func buildBootloaderChain(opts *Options, appBin []byte) (string, error) {
 	fwPath := filepath.Join(opts.OutDir, "firmware_"+opts.Resolved.Project.Name+".uf2")
 	f, err := os.Create(fwPath)
 	if err != nil {
-		return "", err
+		return "", nil, err
 	}
 	defer f.Close()
 	if err := firmware.Pack(f, pieces); err != nil {
-		return "", err
+		return "", nil, err
 	}
-	return fwPath, nil
+
+	usage := &BootloaderUsage{
+		Stages: []BootloaderStage{
+			{Name: "SSBL", Base: ssblBase, Used: uint64(len(ssblBytes)), Capacity: capSSBL},
+			{Name: "TSBL-" + bl.TSBL, Base: tsblBase, Used: uint64(len(tsblBytes)), Capacity: capTSBL},
+			{Name: "Slot A", Base: slotABase, Used: uint64(len(appBin)), Capacity: capSlot},
+			{Name: "Slot B", Base: slotBBase, Used: 0, Capacity: capSlot},
+		},
+	}
+	return fwPath, usage, nil
 }
 
 // buildStage assembles + links one bootloader stage (SSBL or TSBL), returning

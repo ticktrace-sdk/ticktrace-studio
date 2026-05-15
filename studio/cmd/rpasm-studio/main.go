@@ -99,8 +99,13 @@ type appState struct {
 	status    *ui.State[string]
 	logLines  *ui.State[[]string]
 	problems  *ui.State[[]Problem]
-	memory    *ui.State[*build.MemoryUsage]
-	activeTab *ui.State[string] // "output" | "problems" | "memory"
+	memory     *ui.State[*build.MemoryUsage]
+	bootloader *ui.State[*build.BootloaderUsage]
+	// loadedBootloader carries the [bootloader] section from the most-recently
+	// Load-ed project TOML into the next Build, since the GUI has no widget
+	// for the field yet. Cleared on mode tab change.
+	loadedBootloader *project.Bootloader
+	activeTab  *ui.State[string] // "output" | "problems" | "memory"
 	building *ui.State[bool]
 	flashing *ui.State[bool]
 	udevOK   *ui.State[bool]
@@ -200,6 +205,7 @@ func newApp(root string, cat *catalog.Catalog) *appState {
 		logLines:   ui.NewState([]string{}),
 		problems:   ui.NewState([]Problem{}),
 		memory:     ui.NewState[*build.MemoryUsage](nil),
+		bootloader: ui.NewState[*build.BootloaderUsage](nil),
 		activeTab:  ui.NewState("output"),
 		building: ui.NewState(false),
 		flashing: ui.NewState(false),
@@ -224,6 +230,10 @@ func newApp(root string, cat *catalog.Catalog) *appState {
 					a.customLayout = cur
 				}
 			}
+			// Switching modes invalidates the stashed [bootloader] from any
+			// prior Load — the user is effectively starting a new project
+			// shape, so don't silently carry the field across.
+			a.loadedBootloader = nil
 			var next string
 			if idx == 1 {
 				a.mode.Set("custom")
@@ -250,7 +260,14 @@ func (a *appState) expectedUf2() string {
 	if name == "" {
 		return ""
 	}
-	return filepath.Join(a.root, "build", name, name+".uf2")
+	// Bootloader builds produce firmware_<name>.uf2; bare flash/sram builds
+	// produce <name>.uf2. Match build.Build's output naming exactly so the
+	// Flash button enables and the Flash action targets the right file.
+	fname := name + ".uf2"
+	if a.loadedBootloader != nil {
+		fname = "firmware_" + name + ".uf2"
+	}
+	return filepath.Join(a.root, "build", name, fname)
 }
 
 // derivedName mirrors runBuild's name logic exactly. Keep them in sync.
@@ -311,6 +328,7 @@ func (a *appState) projectRow() ui.View {
 	return ui.HStack(
 		ui.Text("Project:").Small(),
 		a.projectPathInput,
+		ui.Button("Browse...").OnClick(a.onBrowseProject),
 		ui.Button("Save").OnClick(a.onSaveProject),
 		ui.Button("Load").OnClick(a.onLoadProject),
 	).Spacing(ui.SpaceMd).Center()
@@ -338,10 +356,16 @@ func (a *appState) onSaveProject() {
 }
 
 func (a *appState) onLoadProject() {
-	path := strings.TrimSpace(a.projectPathInput.Value())
-	if path == "" {
+	raw := strings.TrimSpace(a.projectPathInput.Value())
+	if raw == "" {
 		a.status.Set("Load failed: path required.")
-		a.log("ERROR: enter a project file path before clicking Load.")
+		a.log("ERROR: enter a project file path or click Browse... before clicking Load.")
+		return
+	}
+	path, err := a.resolveProjectPath(raw)
+	if err != nil {
+		a.status.Set("Load failed.")
+		a.log("ERROR: " + err.Error())
 		return
 	}
 	proj, err := project.Load(path)
@@ -350,9 +374,67 @@ func (a *appState) onLoadProject() {
 		a.log("ERROR: " + err.Error())
 		return
 	}
+	// Echo the resolved path back into the input so subsequent saves go to
+	// the same location and the user sees what got opened.
+	a.projectPathInput.SetValue(path)
 	a.applyProject(proj)
 	a.status.Set("Loaded " + path)
 	a.log("loaded " + path)
+	mode := proj.StudioMode
+	if mode == "" {
+		mode = a.mode.Get() // post-inference value
+	}
+	a.log(fmt.Sprintf("  mode=%s, layout=%s, src=%v, bootloader=%v",
+		mode, proj.Layout, proj.UserSource.Files, proj.Bootloader))
+}
+
+// resolveProjectPath turns a user-typed path (possibly relative) into an
+// absolute one. Tries, in order: as-is (absolute or CWD-relative), studio
+// root, SDK root (parent of studio). Returns a wrapped error listing the
+// candidates if none exist — much friendlier than "no such file or folder".
+func (a *appState) resolveProjectPath(raw string) (string, error) {
+	if filepath.IsAbs(raw) {
+		if _, err := os.Stat(raw); err == nil {
+			return raw, nil
+		}
+		return "", fmt.Errorf("%s: not found", raw)
+	}
+	parent := filepath.Dir(a.root)
+	candidates := []string{
+		raw,                              // CWD-relative
+		filepath.Join(a.root, raw),       // studio-root-relative
+		filepath.Join(parent, raw),       // SDK-root-relative
+	}
+	for _, c := range candidates {
+		if _, err := os.Stat(c); err == nil {
+			abs, err := filepath.Abs(c)
+			if err != nil {
+				return c, nil
+			}
+			return abs, nil
+		}
+	}
+	return "", fmt.Errorf("project file not found. Tried:\n  %s", strings.Join(candidates, "\n  "))
+}
+
+func (a *appState) onBrowseProject() {
+	start := filepath.Join(a.root, "testdata")
+	if _, err := os.Stat(start); err != nil {
+		start = a.root
+	}
+	picked, err := pickFile("Choose project TOML", start)
+	if err != nil {
+		a.status.Set("Browse failed.")
+		a.log("ERROR: " + err.Error())
+		return
+	}
+	if picked == "" {
+		return // user cancelled — no fuss
+	}
+	a.projectPathInput.SetValue(picked)
+	// Auto-load: Browse-then-click-Build is the obvious flow; making the
+	// user remember to click Load between them is a footgun.
+	a.onLoadProject()
 }
 
 // captureProject snapshots the current GUI state into a Project for saving.
@@ -406,8 +488,23 @@ func (a *appState) captureProject() *project.Project {
 func (a *appState) applyProject(p *project.Project) {
 	mode := p.StudioMode
 	if mode != "examples" && mode != "custom" {
-		mode = "examples"
+		// Infer from contents: a project pointing at user-provided sources
+		// is a custom project; one naming an example is an example project.
+		// This keeps hand-written TOMLs (which won't have studio_mode set)
+		// from being misclassified as "examples" and silently ignoring their
+		// user_source list.
+		switch {
+		case p.ExampleName != "":
+			mode = "examples"
+		case len(p.UserSource.Files) > 0:
+			mode = "custom"
+		default:
+			mode = "examples"
+		}
 	}
+	// Stash bootloader settings (if any) for runBuild to pick up — the GUI
+	// doesn't yet have a widget to set this field.
+	a.loadedBootloader = p.Bootloader
 	a.mode.Set(mode)
 	if a.modeTabBar != nil {
 		if mode == "custom" {
@@ -459,12 +556,17 @@ func (a *appState) applyProject(p *project.Project) {
 	case "custom":
 		if len(p.UserSource.Files) > 0 {
 			a.userSourceInput.SetValue(p.UserSource.Files[0])
+			a.log(fmt.Sprintf("[applyProject] set userSourceInput=%q  (now reads back %q)",
+				p.UserSource.Files[0], a.userSourceInput.Value()))
+		} else {
+			a.log("[applyProject] custom branch: UserSource.Files is empty")
 		}
 		// Restore feature toggles.
 		for sym, cb := range a.checks {
 			cb.SetValue(p.Features[sym])
 		}
 	}
+	a.log(fmt.Sprintf("[applyProject] DONE mode=%s, a.mode.Get()=%s", mode, a.mode.Get()))
 }
 
 // leftPane dispatches to the right side-content based on mode. In Examples
@@ -681,7 +783,7 @@ func (a *appState) outputPane() ui.View {
 			ui.Themed(func(th *theme.Theme) ui.View {
 				return ui.Text(a.status.Get()).Caption().Color(th.Palette.Primary)
 			}),
-			a.tabStrip(active, len(problems), mem != nil),
+			a.tabStrip(active, len(problems), mem != nil || a.bootloader.Get() != nil),
 			ui.Divider(),
 			body,
 		).Spacing(ui.SpaceSm),
@@ -714,20 +816,29 @@ func (a *appState) tabStrip(active string, problemCount int, haveMemory bool) ui
 }
 
 func (a *appState) memoryBody(mem *build.MemoryUsage) ui.View {
-	if mem == nil || (len(mem.Regions) == 0 && len(mem.Sections) == 0) {
+	bl := a.bootloader.Get()
+	empty := (mem == nil || (len(mem.Regions) == 0 && len(mem.Sections) == 0)) && bl == nil
+	if empty {
 		return ui.Scroll(ui.VStack(
 			ui.Text("(memory info not available — run Build first)").Small(),
 		))
 	}
 	rows := []ui.View{}
-	if len(mem.Regions) > 0 {
+	if mem != nil && len(mem.Regions) > 0 {
 		rows = append(rows, ui.Text("Regions").Bold())
 		for _, r := range mem.Regions {
 			rows = append(rows, ui.Text(formatRegion(r)).Small())
 		}
 		rows = append(rows, ui.Spacer())
 	}
-	if len(mem.Sections) > 0 {
+	if bl != nil && len(bl.Stages) > 0 {
+		rows = append(rows, ui.Text("Bootloader chain").Bold())
+		for _, s := range bl.Stages {
+			rows = append(rows, ui.Text(formatStage(s)).Small())
+		}
+		rows = append(rows, ui.Spacer())
+	}
+	if mem != nil && len(mem.Sections) > 0 {
 		rows = append(rows, ui.Text("Sections").Bold())
 		for _, s := range mem.Sections {
 			rows = append(rows, ui.Text(formatSection(s)).Small())
@@ -737,8 +848,13 @@ func (a *appState) memoryBody(mem *build.MemoryUsage) ui.View {
 }
 
 func formatRegion(r build.MemoryRegion) string {
-	return fmt.Sprintf("  %-8s %10s / %-10s  %5.2f%%",
+	return fmt.Sprintf("  %-10s %10s / %-10s  %5.2f%%",
 		r.Name+":", humanBytes(r.Used), humanBytes(r.Size), r.Percent())
+}
+
+func formatStage(s build.BootloaderStage) string {
+	return fmt.Sprintf("  %-10s %10s / %-10s  %5.2f%%   @ 0x%08x",
+		s.Name+":", humanBytes(s.Used), humanBytes(s.Capacity), s.Percent(), s.Base)
 }
 
 func formatSection(s build.MemorySection) string {
@@ -813,6 +929,7 @@ func (a *appState) onBuild() {
 	a.logLines.Set([]string{})
 	a.problems.Set([]Problem{})
 	a.memory.Set(nil)
+	a.bootloader.Set(nil)
 	a.activeTab.Set("output")
 	a.status.Set("Building...")
 
@@ -824,6 +941,8 @@ func (a *appState) onBuild() {
 
 func (a *appState) runBuild() {
 	mode := a.mode.Get()
+	a.log(fmt.Sprintf("build start: mode=%s, src=%q, nameInput=%q, bootloader=%v",
+		mode, a.userSourceInput.Value(), a.nameInput.Value(), a.loadedBootloader))
 	var name, src string
 	switch mode {
 	case "custom":
@@ -856,6 +975,7 @@ func (a *appState) runBuild() {
 		UserSource: project.UserSource{
 			Files: []string{src},
 		},
+		Bootloader: a.loadedBootloader,
 	}
 	if proj.Name == "" {
 		proj.Name = "blinky"
@@ -910,6 +1030,7 @@ func (a *appState) runBuild() {
 	a.log("BIN " + result.Bin)
 	a.log("UF2 " + result.Uf2)
 	a.memory.Set(result.Memory)
+	a.bootloader.Set(result.Bootloader)
 	a.status.Set("Build succeeded.")
 }
 
@@ -1070,6 +1191,7 @@ func studioRoot() string {
 	if err != nil {
 		fatal("getwd: %v", err)
 	}
+	// Walk up first — covers the common case where CWD is inside studio/.
 	for d := cwd; ; {
 		if _, err := os.Stat(filepath.Join(d, "go.mod")); err == nil {
 			if _, err := os.Stat(filepath.Join(d, "catalog")); err == nil {
@@ -1078,10 +1200,17 @@ func studioRoot() string {
 		}
 		parent := filepath.Dir(d)
 		if parent == d {
-			return cwd
+			break
 		}
 		d = parent
 	}
+	// Fall back to descending one level: launched from the SDK root
+	// (`go run ./studio/cmd/rpasm-studio` from rp-asm/) where catalog
+	// lives at studio/catalog.
+	if _, err := os.Stat(filepath.Join(cwd, "studio", "catalog")); err == nil {
+		return filepath.Join(cwd, "studio")
+	}
+	return cwd
 }
 
 func fatal(format string, args ...any) {

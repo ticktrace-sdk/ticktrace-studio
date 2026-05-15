@@ -35,6 +35,28 @@ type MemorySection struct {
 	Addr uint64
 }
 
+// BootloaderUsage breaks the firmware UF2 down by stage. Only populated when
+// the project has [bootloader] set. Capacities are layout-defined (mirrored
+// from include/bootloader.inc); Used is the actual payload size (excludes
+// the 256-byte footer for stages that have one).
+type BootloaderUsage struct {
+	Stages []BootloaderStage
+}
+
+type BootloaderStage struct {
+	Name     string // "SSBL" | "TSBL-ab" | "Slot A" | "Slot B"
+	Base     uint32 // load address
+	Used     uint64 // bytes of payload
+	Capacity uint64 // bytes the slot can hold (incl. footer for app slots)
+}
+
+func (s BootloaderStage) Percent() float64 {
+	if s.Capacity == 0 {
+		return 0
+	}
+	return 100.0 * float64(s.Used) / float64(s.Capacity)
+}
+
 // ld --print-memory-usage format:
 //
 //	Memory region         Used Size  Region Size  %age Used
