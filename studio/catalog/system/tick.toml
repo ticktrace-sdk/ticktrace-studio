@@ -1,0 +1,7 @@
+symbol = "TICK"
+name = "System tick"
+category = "system"
+order = 90
+default = true
+description = "ARM SysTick generator + tick subsystem."
+sources = ["../src/tick.S"]

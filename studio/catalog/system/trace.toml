@@ -1,0 +1,7 @@
+symbol = "TRACE"
+name = "CoreSight trace"
+category = "system"
+order = 180
+default = true
+description = "CoreSight DWT/ITM/TPIU/ETM for T4 hardware debugging."
+sources = ["../src/trace.S"]

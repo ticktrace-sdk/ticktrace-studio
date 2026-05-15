@@ -1,0 +1,7 @@
+symbol = "SCHED_STATS"
+name = "Scheduler stats"
+category = "system"
+order = 210
+default = true
+description = "Per-task DWT cycle accounting (opt-in via task_create_traced)."
+sources = ["../src/sched_stats.S"]

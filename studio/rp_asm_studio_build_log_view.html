@@ -1,0 +1,108 @@
+<h2 class="sr-only">rp-asm Studio mockup showing the build log panel after a successful build, with toolchain output and memory usage breakdown.</h2>
+
+<div style="padding: 1rem 0;">
+<div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); border: 0.5px solid var(--color-border-tertiary); overflow: hidden;">
+
+  <div style="padding: 8px 14px; background: var(--color-background-tertiary); border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 10px;">
+    <div style="display: flex; gap: 6px;">
+      <span style="width: 10px; height: 10px; border-radius: 50%; background: #E24B4A; display: inline-block;"></span>
+      <span style="width: 10px; height: 10px; border-radius: 50%; background: #EF9F27; display: inline-block;"></span>
+      <span style="width: 10px; height: 10px; border-radius: 50%; background: #97C459; display: inline-block;"></span>
+    </div>
+    <span style="font-size: 13px; font-weight: 500;">rp-asm Studio</span>
+    <span style="font-size: 12px; color: var(--color-text-tertiary);">— blink-led.rpasm</span>
+  </div>
+
+  <div style="padding: 10px 14px; background: var(--color-background-primary); border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 10px;">
+    <span style="font-size: 12px; color: var(--color-text-secondary);">Target</span>
+    <div style="display: flex; align-items: center; gap: 6px; padding: 5px 10px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); font-size: 13px;">
+      <i class="ti ti-cpu" style="font-size: 14px; color: var(--color-text-secondary);" aria-hidden="true"></i>
+      <span>RP2350 · Hazard3 RISC-V</span>
+      <i class="ti ti-chevron-down" style="font-size: 12px; color: var(--color-text-tertiary); margin-left: 4px;" aria-hidden="true"></i>
+    </div>
+    <div style="flex: 1;"></div>
+    <span style="font-size: 12px; color: #0F6E56; display: inline-flex; align-items: center; gap: 5px;">
+      <i class="ti ti-check" style="font-size: 14px;" aria-hidden="true"></i>
+      Built in 1.4s
+    </span>
+    <button style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px;">
+      <i class="ti ti-hammer" style="font-size: 14px;" aria-hidden="true"></i> Build
+    </button>
+    <button style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; background: #BA7517; color: #FAEEDA; border-color: #BA7517;">
+      <i class="ti ti-bolt" style="font-size: 14px;" aria-hidden="true"></i> Flash
+    </button>
+  </div>
+
+  <div style="background: var(--color-background-primary); padding: 8px 14px; border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 10px; font-size: 12px; color: var(--color-text-tertiary); opacity: 0.55;">
+    <i class="ti ti-folder-open" style="font-size: 13px;" aria-hidden="true"></i>
+    <span>Features · 14 selected</span>
+    <span>·</span>
+    <span>UART · uart0 · 115200 baud</span>
+    <div style="flex: 1;"></div>
+    <i class="ti ti-chevron-up" style="font-size: 13px;" aria-hidden="true"></i>
+  </div>
+
+  <div style="background: var(--color-background-primary);">
+
+    <div style="display: flex; gap: 0; border-bottom: 0.5px solid var(--color-border-tertiary); padding: 0 14px;">
+      <div style="padding: 9px 14px; font-size: 13px; font-weight: 500; border-bottom: 2px solid #185FA5; color: var(--color-text-primary);">Output</div>
+      <div style="padding: 9px 14px; font-size: 13px; color: var(--color-text-secondary); display: flex; align-items: center; gap: 6px;">
+        Problems
+        <span style="background: var(--color-background-secondary); color: var(--color-text-tertiary); font-size: 11px; padding: 1px 6px; border-radius: 8px;">0</span>
+      </div>
+      <div style="padding: 9px 14px; font-size: 13px; color: var(--color-text-secondary);">Memory</div>
+      <div style="flex: 1;"></div>
+      <div style="padding: 9px 4px; color: var(--color-text-tertiary); font-size: 13px; display: flex; align-items: center; gap: 10px;">
+        <i class="ti ti-trash" style="font-size: 14px;" aria-hidden="true"></i>
+        <i class="ti ti-x" style="font-size: 14px;" aria-hidden="true"></i>
+      </div>
+    </div>
+
+    <div style="padding: 12px 18px; font-family: var(--font-mono); font-size: 12px; line-height: 1.7; min-height: 280px;">
+      <div style="color: var(--color-text-tertiary);">[15:24:13] Configuring rp2350-riscv build...</div>
+      <div style="color: var(--color-text-tertiary);">[15:24:13] Resolved 14 features · 10 source modules</div>
+      <div style="height: 6px;"></div>
+      <div style="color: var(--color-text-secondary);">› as <span style="color: var(--color-text-primary);">system/boot.s</span></div>
+      <div style="color: var(--color-text-secondary);">› as <span style="color: var(--color-text-primary);">system/crystal_startup.s</span></div>
+      <div style="color: var(--color-text-secondary);">› as <span style="color: var(--color-text-primary);">memory/flash_xip.s</span></div>
+      <div style="color: var(--color-text-secondary);">› as <span style="color: var(--color-text-primary);">peripherals/gpio.s</span></div>
+      <div style="color: var(--color-text-secondary);">› as <span style="color: var(--color-text-primary);">peripherals/uart.s</span></div>
+      <div style="color: var(--color-text-secondary);">› as <span style="color: var(--color-text-primary);">peripherals/uart_irq.s</span></div>
+      <div style="color: var(--color-text-secondary);">› as <span style="color: var(--color-text-primary);">peripherals/dma.s</span></div>
+      <div style="color: var(--color-text-secondary);">› as <span style="color: var(--color-text-primary);">user/blink-led.s</span></div>
+      <div style="height: 6px;"></div>
+      <div style="color: var(--color-text-secondary);">› ld   <span style="color: var(--color-text-primary);">build/blink-led.elf</span></div>
+      <div style="color: var(--color-text-secondary);">› uf2  <span style="color: var(--color-text-primary);">build/blink-led.uf2</span></div>
+      <div style="height: 10px;"></div>
+      <div style="color: #0F6E56; font-weight: 500;">✓ Build succeeded in 1.4s</div>
+      <div style="color: var(--color-text-secondary); padding-left: 16px;">flash    8,234 / 2,097,152 bytes  (0.4%)</div>
+      <div style="color: var(--color-text-secondary); padding-left: 16px;">sram       416 /   532,480 bytes  (0.1%)</div>
+      <div style="color: var(--color-text-secondary); padding-left: 16px;">output  build/blink-led.uf2</div>
+
+      <div style="height: 14px;"></div>
+
+      <div style="display: flex; gap: 10px; align-items: center; padding: 8px 12px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); width: fit-content;">
+        <span style="color: var(--color-text-secondary); font-size: 11px;">flash</span>
+        <div style="width: 280px; height: 8px; background: var(--color-background-tertiary); border-radius: 4px; overflow: hidden; display: flex;">
+          <div style="width: 32%; background: #185FA5; height: 100%;"></div>
+          <div style="width: 12%; background: #5DCAA5; height: 100%;"></div>
+          <div style="width: 4%; background: #EF9F27; height: 100%;"></div>
+        </div>
+        <span style="color: var(--color-text-tertiary); font-size: 11px;">code · rodata · data</span>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div style="padding: 7px 14px; background: var(--color-background-secondary); border-top: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 14px; font-size: 12px; color: var(--color-text-secondary); font-family: var(--font-mono);">
+    <span><i class="ti ti-cpu" style="font-size: 13px; vertical-align: -2px; margin-right: 3px;" aria-hidden="true"></i>rp2350-riscv</span>
+    <span>14 features</span>
+    <span>flash 8.2 / 2048 KB</span>
+    <span>sram 0.4 / 520 KB</span>
+    <div style="flex: 1;"></div>
+    <span style="display: inline-flex; align-items: center; gap: 5px; color: #0F6E56;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #1D9E75; display: inline-block;"></span>Built</span>
+  </div>
+
+</div>
+</div>

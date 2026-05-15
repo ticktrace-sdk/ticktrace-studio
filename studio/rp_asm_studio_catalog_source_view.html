@@ -1,0 +1,126 @@
+<h2 class="sr-only">rp-asm Studio contributor view showing Kconfig source on the left and rendered preview UI on the right, with developer mode enabled.</h2>
+
+<style>
+  .kw { color: #185FA5; font-weight: 500; }
+  .str { color: #0F6E56; }
+  .sym { color: var(--color-text-primary); }
+  .cmt { color: var(--color-text-tertiary); }
+  .src-line { white-space: pre; }
+</style>
+
+<div style="padding: 1rem 0;">
+<div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); border: 0.5px solid var(--color-border-tertiary); overflow: hidden;">
+
+  <div style="padding: 8px 14px; background: var(--color-background-tertiary); border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 10px;">
+    <div style="display: flex; gap: 6px;">
+      <span style="width: 10px; height: 10px; border-radius: 50%; background: #E24B4A; display: inline-block;"></span>
+      <span style="width: 10px; height: 10px; border-radius: 50%; background: #EF9F27; display: inline-block;"></span>
+      <span style="width: 10px; height: 10px; border-radius: 50%; background: #97C459; display: inline-block;"></span>
+    </div>
+    <span style="font-size: 13px; font-weight: 500;">rp-asm Studio</span>
+    <span style="font-size: 12px; color: var(--color-text-tertiary);">— catalog editor</span>
+    <div style="flex: 1;"></div>
+    <span style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; background: #FAEEDA; color: #854F0B; font-size: 11px; border-radius: var(--border-radius-md); font-weight: 500;">
+      <i class="ti ti-code" style="font-size: 12px;" aria-hidden="true"></i>
+      Developer mode
+    </span>
+  </div>
+
+  <div style="padding: 8px 14px; background: var(--color-background-primary); border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 10px; font-size: 12px;">
+    <i class="ti ti-folder" style="font-size: 14px; color: var(--color-text-secondary);" aria-hidden="true"></i>
+    <span style="color: var(--color-text-tertiary); font-family: var(--font-mono);">catalog /</span>
+    <span style="color: var(--color-text-tertiary); font-family: var(--font-mono);">peripherals /</span>
+    <span style="color: var(--color-text-primary); font-family: var(--font-mono); font-weight: 500;">uart.kconfig</span>
+    <div style="flex: 1;"></div>
+    <span style="color: var(--color-text-secondary);">Auto-reload</span>
+    <span style="width: 30px; height: 16px; border-radius: 8px; background: #185FA5; position: relative; display: inline-block;"><span style="position: absolute; top: 1px; right: 1px; width: 14px; height: 14px; background: white; border-radius: 50%;"></span></span>
+  </div>
+
+  <div style="display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); background: var(--color-background-primary);">
+
+    <div style="border-right: 0.5px solid var(--color-border-tertiary); min-height: 360px;">
+      <div style="padding: 8px 14px; background: var(--color-background-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-tertiary); font-weight: 500;">Source</div>
+      <div style="padding: 12px 0 12px 6px; font-family: var(--font-mono); font-size: 12px; line-height: 1.7; color: var(--color-text-primary);">
+
+        <div class="src-line"><span class="cmt">  1  </span><span class="kw">config</span> <span class="sym">UART</span></div>
+        <div class="src-line"><span class="cmt">  2  </span>    <span class="kw">bool</span> <span class="str">"UART"</span></div>
+        <div class="src-line"><span class="cmt">  3  </span>    <span class="kw">depends on</span> <span class="sym">GPIO</span></div>
+        <div class="src-line"><span class="cmt">  4  </span>    <span class="kw">select</span> <span class="sym">BOOT_ROM_HELPERS</span></div>
+        <div class="src-line"><span class="cmt">  5  </span>    <span class="kw">help</span></div>
+        <div class="src-line"><span class="cmt">  6  </span>      Polled and interrupt-driven UART</div>
+        <div class="src-line"><span class="cmt">  7  </span>      routines for the RP2350 PL011</div>
+        <div class="src-line"><span class="cmt">  8  </span>      controller. Adds ~480 bytes of</div>
+        <div class="src-line"><span class="cmt">  9  </span>      flash when enabled.</div>
+        <div class="src-line"><span class="cmt"> 10  </span></div>
+        <div class="src-line"><span class="cmt"> 11  </span><span class="kw">if</span> <span class="sym">UART</span></div>
+        <div class="src-line"><span class="cmt"> 12  </span></div>
+        <div class="src-line"><span class="cmt"> 13  </span><span class="kw">config</span> <span class="sym">UART_INSTANCE</span></div>
+        <div class="src-line"><span class="cmt"> 14  </span>    <span class="kw">int</span> <span class="str">"Instance"</span></div>
+        <div class="src-line"><span class="cmt"> 15  </span>    <span class="kw">range</span> 0 1</div>
+        <div class="src-line"><span class="cmt"> 16  </span>    <span class="kw">default</span> 0</div>
+        <div class="src-line"><span class="cmt"> 17  </span></div>
+        <div class="src-line"><span class="cmt"> 18  </span><span class="kw">config</span> <span class="sym">UART_BAUD</span></div>
+        <div class="src-line"><span class="cmt"> 19  </span>    <span class="kw">int</span> <span class="str">"Baud rate"</span></div>
+        <div class="src-line"><span class="cmt"> 20  </span>    <span class="kw">default</span> 115200</div>
+        <div class="src-line"><span class="cmt"> 21  </span></div>
+        <div class="src-line"><span class="cmt"> 22  </span><span class="kw">config</span> <span class="sym">UART_IRQ</span></div>
+        <div class="src-line"><span class="cmt"> 23  </span>    <span class="kw">bool</span> <span class="str">"IRQ handler"</span></div>
+        <div class="src-line"><span class="cmt"> 24  </span>    <span class="kw">default</span> y</div>
+        <div class="src-line"><span class="cmt"> 25  </span></div>
+        <div class="src-line"><span class="cmt"> 26  </span><span class="kw">endif</span></div>
+
+      </div>
+    </div>
+
+    <div style="min-height: 360px;">
+      <div style="padding: 8px 14px; background: var(--color-background-secondary); border-bottom: 0.5px solid var(--color-border-tertiary); font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-tertiary); font-weight: 500; display: flex; align-items: center; gap: 8px;">
+        Preview
+        <span style="color: var(--color-text-tertiary); text-transform: none; letter-spacing: 0; font-weight: 400;">— how users see it</span>
+      </div>
+      <div style="padding: 14px 16px;">
+
+        <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;">
+          <span style="font-weight: 500; font-size: 14px;">UART</span>
+          <span style="font-size: 11px; color: var(--color-text-tertiary); font-family: var(--font-mono);">CONFIG_UART</span>
+        </div>
+        <p style="font-size: 12px; color: var(--color-text-secondary); margin: 0 0 12px; line-height: 1.55;">Polled and interrupt-driven UART routines for the RP2350 PL011 controller. Adds ~480 bytes of flash when enabled.</p>
+
+        <div style="display: grid; grid-template-columns: 80px 1fr; row-gap: 9px; column-gap: 10px; align-items: center; font-size: 12px;">
+
+          <label style="color: var(--color-text-secondary);">Instance</label>
+          <div style="display: inline-flex; align-items: center; gap: 5px; padding: 3px 8px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); justify-self: start; font-family: var(--font-mono);">
+            0
+            <i class="ti ti-chevron-down" style="font-size: 11px; color: var(--color-text-tertiary);" aria-hidden="true"></i>
+          </div>
+
+          <label style="color: var(--color-text-secondary);">Baud rate</label>
+          <div style="padding: 3px 8px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); font-family: var(--font-mono); justify-self: start; min-width: 80px;">115200</div>
+
+          <label style="color: var(--color-text-secondary);">IRQ handler</label>
+          <div style="display: inline-flex; align-items: center; gap: 6px;">
+            <span style="width: 26px; height: 14px; border-radius: 7px; background: #185FA5; position: relative; display: inline-block;"><span style="position: absolute; top: 1px; right: 1px; width: 12px; height: 12px; background: white; border-radius: 50%;"></span></span>
+            <span style="font-size: 11px; color: var(--color-text-secondary);">enabled</span>
+          </div>
+
+        </div>
+
+        <div style="margin-top: 14px; padding: 8px 10px; background: var(--color-background-secondary); border-radius: var(--border-radius-md); font-size: 11px; color: var(--color-text-secondary); display: flex; flex-direction: column; gap: 3px;">
+          <div><span style="color: var(--color-text-tertiary);">depends on:</span> GPIO ✓</div>
+          <div><span style="color: var(--color-text-tertiary);">selects:</span> BOOT_ROM_HELPERS</div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <div style="padding: 7px 14px; background: var(--color-background-secondary); border-top: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 14px; font-size: 12px; color: var(--color-text-secondary); font-family: var(--font-mono);">
+    <span><i class="ti ti-file" style="font-size: 13px; vertical-align: -2px; margin-right: 3px;" aria-hidden="true"></i>uart.kconfig</span>
+    <span>26 lines</span>
+    <span>4 symbols</span>
+    <div style="flex: 1;"></div>
+    <span style="display: inline-flex; align-items: center; gap: 5px; color: #0F6E56;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #1D9E75; display: inline-block;"></span>Parsed</span>
+  </div>
+
+</div>
+</div>

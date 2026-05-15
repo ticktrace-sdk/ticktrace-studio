@@ -1,0 +1,7 @@
+symbol = "GPIO"
+name = "GPIO"
+category = "peripherals"
+order = 30
+default = true
+description = "GPIO + pad control."
+sources = ["../src/gpio.S"]

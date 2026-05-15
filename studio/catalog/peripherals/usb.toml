@@ -1,0 +1,7 @@
+symbol = "USB"
+name = "USB device + CDC-ACM"
+category = "peripherals"
+order = 130
+default = true
+description = "USB device controller + CDC-ACM."
+sources = ["../src/usb.S"]

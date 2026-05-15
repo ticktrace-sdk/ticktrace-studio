@@ -1,0 +1,9 @@
+name = "bootsel_usb_demo"
+target = "rp2350-arm"
+layout = "flash"
+rpasm_version = "1.0"
+
+[features]
+
+[user_source]
+files = ["../examples/bootsel_usb_demo.S"]

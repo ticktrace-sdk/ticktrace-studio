@@ -1,0 +1,152 @@
+<h2 class="sr-only">rp-asm Studio desktop app mockup showing target selector, feature tree, and configuration panel for a UART peripheral.</h2>
+
+<div style="padding: 1rem 0;">
+<div style="background: var(--color-background-secondary); border-radius: var(--border-radius-lg); border: 0.5px solid var(--color-border-tertiary); overflow: hidden;">
+
+  <div style="padding: 8px 14px; background: var(--color-background-tertiary); border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 10px;">
+    <div style="display: flex; gap: 6px;">
+      <span style="width: 10px; height: 10px; border-radius: 50%; background: #E24B4A; display: inline-block;"></span>
+      <span style="width: 10px; height: 10px; border-radius: 50%; background: #EF9F27; display: inline-block;"></span>
+      <span style="width: 10px; height: 10px; border-radius: 50%; background: #97C459; display: inline-block;"></span>
+    </div>
+    <span style="font-size: 13px; font-weight: 500;">rp-asm Studio</span>
+    <span style="font-size: 12px; color: var(--color-text-tertiary);">— blink-led.rpasm</span>
+  </div>
+
+  <div style="padding: 10px 14px; background: var(--color-background-primary); border-bottom: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 10px;">
+    <span style="font-size: 12px; color: var(--color-text-secondary);">Target</span>
+    <div style="display: flex; align-items: center; gap: 6px; padding: 5px 10px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); font-size: 13px;">
+      <i class="ti ti-cpu" style="font-size: 14px; color: var(--color-text-secondary);" aria-hidden="true"></i>
+      <span>RP2350 · Hazard3 RISC-V</span>
+      <i class="ti ti-chevron-down" style="font-size: 12px; color: var(--color-text-tertiary); margin-left: 4px;" aria-hidden="true"></i>
+    </div>
+    <div style="flex: 1;"></div>
+    <button style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px;">
+      <i class="ti ti-hammer" style="font-size: 14px;" aria-hidden="true"></i> Build
+    </button>
+    <button style="display: inline-flex; align-items: center; gap: 6px; padding: 6px 12px; font-size: 13px; background: #BA7517; color: #FAEEDA; border-color: #BA7517;">
+      <i class="ti ti-bolt" style="font-size: 14px;" aria-hidden="true"></i> Flash
+    </button>
+  </div>
+
+  <div style="display: grid; grid-template-columns: 240px minmax(0, 1fr); background: var(--color-background-primary);">
+
+    <div style="border-right: 0.5px solid var(--color-border-tertiary); padding: 10px 0 14px; font-size: 13px;">
+      <div style="padding: 4px 14px 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 0.05em; color: var(--color-text-tertiary); font-weight: 500;">Features</div>
+
+      <div style="padding: 5px 14px; display: flex; align-items: center; gap: 6px; font-weight: 500;">
+        <i class="ti ti-chevron-down" style="font-size: 12px; color: var(--color-text-secondary);" aria-hidden="true"></i>
+        <span>System</span>
+      </div>
+      <div style="padding: 4px 14px 4px 32px; display: flex; align-items: center; gap: 8px; color: var(--color-text-secondary);">
+        <span style="width: 13px; height: 13px; border-radius: 3px; background: #185FA5; display: inline-flex; align-items: center; justify-content: center;"><i class="ti ti-check" style="font-size: 11px; color: white;" aria-hidden="true"></i></span>
+        Boot ROM helpers
+      </div>
+      <div style="padding: 4px 14px 4px 32px; display: flex; align-items: center; gap: 8px; color: var(--color-text-secondary);">
+        <span style="width: 13px; height: 13px; border-radius: 3px; background: #185FA5; display: inline-flex; align-items: center; justify-content: center;"><i class="ti ti-check" style="font-size: 11px; color: white;" aria-hidden="true"></i></span>
+        Crystal startup
+      </div>
+      <div style="padding: 4px 14px 4px 32px; display: flex; align-items: center; gap: 8px; color: var(--color-text-tertiary);">
+        <span style="width: 13px; height: 13px; border-radius: 3px; border: 0.5px solid var(--color-border-secondary);"></span>
+        XOSC override
+      </div>
+
+      <div style="padding: 8px 14px 5px; display: flex; align-items: center; gap: 6px; font-weight: 500;">
+        <i class="ti ti-chevron-down" style="font-size: 12px; color: var(--color-text-secondary);" aria-hidden="true"></i>
+        <span>Peripherals</span>
+      </div>
+      <div style="padding: 4px 14px 4px 32px; display: flex; align-items: center; gap: 8px; color: var(--color-text-secondary);">
+        <span style="width: 13px; height: 13px; border-radius: 3px; background: #185FA5; display: inline-flex; align-items: center; justify-content: center;"><i class="ti ti-check" style="font-size: 11px; color: white;" aria-hidden="true"></i></span>
+        GPIO
+      </div>
+      <div style="padding: 5px 14px 5px 32px; display: flex; align-items: center; gap: 8px; background: #E6F1FB; color: #0C447C; font-weight: 500; border-left: 2px solid #185FA5; padding-left: 30px;">
+        <span style="width: 13px; height: 13px; border-radius: 3px; background: #185FA5; display: inline-flex; align-items: center; justify-content: center;"><i class="ti ti-check" style="font-size: 11px; color: white;" aria-hidden="true"></i></span>
+        UART
+      </div>
+      <div style="padding: 4px 14px 4px 32px; display: flex; align-items: center; gap: 8px; color: var(--color-text-tertiary);">
+        <span style="width: 13px; height: 13px; border-radius: 3px; border: 0.5px solid var(--color-border-secondary);"></span>
+        SPI
+      </div>
+      <div style="padding: 4px 14px 4px 32px; display: flex; align-items: center; gap: 8px; color: var(--color-text-tertiary);">
+        <span style="width: 13px; height: 13px; border-radius: 3px; border: 0.5px solid var(--color-border-secondary);"></span>
+        I²C
+      </div>
+      <div style="padding: 4px 14px 4px 32px; display: flex; align-items: center; gap: 8px; color: var(--color-text-tertiary);">
+        <span style="width: 13px; height: 13px; border-radius: 3px; border: 0.5px solid var(--color-border-secondary);"></span>
+        PIO
+      </div>
+      <div style="padding: 4px 14px 4px 32px; display: flex; align-items: center; gap: 8px; color: var(--color-text-secondary);">
+        <span style="width: 13px; height: 13px; border-radius: 3px; background: #185FA5; display: inline-flex; align-items: center; justify-content: center;"><i class="ti ti-check" style="font-size: 11px; color: white;" aria-hidden="true"></i></span>
+        DMA
+      </div>
+
+      <div style="padding: 8px 14px 5px; display: flex; align-items: center; gap: 6px; font-weight: 500;">
+        <i class="ti ti-chevron-right" style="font-size: 12px; color: var(--color-text-secondary);" aria-hidden="true"></i>
+        <span>Stdio</span>
+      </div>
+      <div style="padding: 5px 14px; display: flex; align-items: center; gap: 6px; font-weight: 500;">
+        <i class="ti ti-chevron-right" style="font-size: 12px; color: var(--color-text-secondary);" aria-hidden="true"></i>
+        <span>Debug</span>
+      </div>
+    </div>
+
+    <div style="padding: 16px 18px; min-width: 0;">
+
+      <div style="display: flex; align-items: baseline; gap: 8px; margin-bottom: 4px;">
+        <h3 style="margin: 0; font-size: 16px;">UART</h3>
+        <span style="font-size: 12px; color: var(--color-text-tertiary); font-family: var(--font-mono);">CONFIG_UART</span>
+      </div>
+      <p style="font-size: 13px; color: var(--color-text-secondary); margin: 0 0 14px; line-height: 1.55;">Polled and interrupt-driven UART routines for the RP2350 PL011 controller. Adds ~480 bytes of flash when enabled.</p>
+
+      <div style="display: grid; grid-template-columns: 110px 1fr; row-gap: 10px; column-gap: 14px; align-items: center; font-size: 13px; margin-bottom: 16px;">
+
+        <label style="color: var(--color-text-secondary);">Instance</label>
+        <div style="display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); justify-self: start;">
+          uart0
+          <i class="ti ti-chevron-down" style="font-size: 12px; color: var(--color-text-tertiary);" aria-hidden="true"></i>
+        </div>
+
+        <label style="color: var(--color-text-secondary);">Baud rate</label>
+        <div style="padding: 4px 10px; background: var(--color-background-secondary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-md); font-family: var(--font-mono); justify-self: start; min-width: 100px;">115200</div>
+
+        <label style="color: var(--color-text-secondary);">TX pin</label>
+        <div style="display: flex; align-items: center; gap: 8px;">
+          <span style="font-family: var(--font-mono);">GPIO 0</span>
+          <span style="font-size: 11px; color: var(--color-text-info); display: inline-flex; align-items: center; gap: 3px;"><i class="ti ti-external-link" style="font-size: 11px;" aria-hidden="true"></i>open in Pingo</span>
+        </div>
+
+        <label style="color: var(--color-text-secondary);">RX pin</label>
+        <div style="font-family: var(--font-mono);">GPIO 1</div>
+
+        <label style="color: var(--color-text-secondary);">IRQ handler</label>
+        <div style="display: inline-flex; align-items: center; gap: 6px;">
+          <span style="width: 30px; height: 16px; border-radius: 8px; background: #185FA5; position: relative; display: inline-block;"><span style="position: absolute; top: 1px; right: 1px; width: 14px; height: 14px; background: white; border-radius: 50%;"></span></span>
+          <span style="font-size: 12px; color: var(--color-text-secondary);">enabled</span>
+        </div>
+
+      </div>
+
+      <div style="background: #E1F5EE; border-radius: var(--border-radius-md); padding: 10px 12px; font-size: 12px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;">
+        <i class="ti ti-check" style="font-size: 14px; color: #0F6E56;" aria-hidden="true"></i>
+        <span style="color: #085041;">Dependencies satisfied: GPIO, Boot ROM helpers</span>
+      </div>
+
+      <div style="font-size: 12px; color: var(--color-text-tertiary); display: flex; gap: 14px; padding-top: 6px;">
+        <span><i class="ti ti-file-code" style="font-size: 13px; vertical-align: -2px; margin-right: 3px;" aria-hidden="true"></i>uart.s · uart_irq.s · uart_baud.s</span>
+      </div>
+
+    </div>
+
+  </div>
+
+  <div style="padding: 7px 14px; background: var(--color-background-secondary); border-top: 0.5px solid var(--color-border-tertiary); display: flex; align-items: center; gap: 14px; font-size: 12px; color: var(--color-text-secondary); font-family: var(--font-mono);">
+    <span><i class="ti ti-cpu" style="font-size: 13px; vertical-align: -2px; margin-right: 3px;" aria-hidden="true"></i>rp2350-riscv</span>
+    <span>14 features</span>
+    <span>flash 8.2 / 2048 KB</span>
+    <span>sram 0.4 / 520 KB</span>
+    <div style="flex: 1;"></div>
+    <span style="display: inline-flex; align-items: center; gap: 5px; color: #0F6E56;"><span style="width: 7px; height: 7px; border-radius: 50%; background: #1D9E75; display: inline-block;"></span>Ready</span>
+  </div>
+
+</div>
+</div>

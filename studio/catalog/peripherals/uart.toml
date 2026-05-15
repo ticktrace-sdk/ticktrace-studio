@@ -1,0 +1,7 @@
+symbol = "UART"
+name = "UART"
+category = "peripherals"
+order = 20
+default = true
+description = "Polled and interrupt-driven UART routines for the RP2350 PL011 controller."
+sources = ["../src/uart.S"]

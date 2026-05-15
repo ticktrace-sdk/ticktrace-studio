@@ -1,0 +1,7 @@
+symbol = "SHA256"
+name = "SHA-256 accelerator"
+category = "peripherals"
+order = 140
+default = true
+description = "Hardware SHA-256 accelerator."
+sources = ["../src/sha256.S"]

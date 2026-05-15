@@ -1,0 +1,7 @@
+symbol = "POWMAN"
+name = "Power management"
+category = "system"
+order = 80
+default = true
+description = "POWMAN power and reset management."
+sources = ["../src/powman.S"]

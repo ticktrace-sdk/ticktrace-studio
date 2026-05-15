@@ -1,0 +1,7 @@
+symbol = "DMA"
+name = "DMA"
+category = "peripherals"
+order = 100
+default = true
+description = "RP2350 DMA controller."
+sources = ["../src/dma.S"]

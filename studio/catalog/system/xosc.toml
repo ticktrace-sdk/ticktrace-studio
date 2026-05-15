@@ -1,0 +1,7 @@
+symbol = "XOSC"
+name = "Crystal oscillator"
+category = "system"
+order = 40
+default = true
+description = "Crystal startup sequence."
+sources = ["../src/xosc.S"]

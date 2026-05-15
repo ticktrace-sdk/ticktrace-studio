@@ -1,0 +1,7 @@
+symbol = "PIO"
+name = "PIO"
+category = "peripherals"
+order = 170
+default = true
+description = "PIO controller side. pioasm deferred."
+sources = ["../src/pio.S"]

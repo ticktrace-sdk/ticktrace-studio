@@ -1,0 +1,11 @@
+name = "rp2350-arm"
+arch = "arm"
+toolchain_prefix = "arm-none-eabi-"
+as_flags = ["-mcpu=cortex-m33", "-mthumb", "-mimplicit-it=always", "--warn"]
+as_includes = ["../include"]
+ld_flags = ["-nostdlib", "--gc-sections"]
+ld_script_flash = "../link/flash.ld"
+ld_script_sram = "../link/sram.ld"
+flash_load_addr = 0x10000000
+sram_load_addr = 0x20000000
+uf2_family_id = 0xE48BFF59

@@ -1,0 +1,7 @@
+symbol = "I2C"
+name = "I2C"
+category = "peripherals"
+order = 110
+default = true
+description = "DesignWare DW_apb_i2c, both instances."
+sources = ["../src/i2c.S"]

@@ -1,0 +1,9 @@
+name = "blinky"
+target = "rp2350-arm"
+layout = "sram"
+rpasm_version = "1.0"
+
+[features]
+
+[user_source]
+files = ["../src/main.S"]

@@ -1,0 +1,7 @@
+symbol = "ADC"
+name = "ADC"
+category = "peripherals"
+order = 150
+default = true
+description = "RP2350 ADC."
+sources = ["../src/adc.S"]

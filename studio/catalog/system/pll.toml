@@ -1,0 +1,7 @@
+symbol = "PLL"
+name = "PLL"
+category = "system"
+order = 50
+default = true
+description = "PLL configuration helpers (used by clocks)."
+sources = ["../src/pll.S"]
