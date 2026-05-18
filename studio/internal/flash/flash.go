@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -24,7 +24,7 @@
 // Package flash copies a UF2 image to an RP2350 in BOOTSEL mode.
 //
 // Two strategies, tried in order:
-//  1. rpasmboot — our in-tree PICOBOOT client (preferred; zero external deps).
+//  1. rpasmboot: our in-tree PICOBOOT client (preferred; zero external deps).
 //  2. Direct file copy to a BOOTSEL-mounted drive (RPI-RP2 / RP2350 label).
 package flash
 

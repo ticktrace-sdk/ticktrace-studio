@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -98,7 +98,7 @@ func buildBootloaderChain(opts *Options, appBin []byte) (string, *BootloaderUsag
 	tsblFooter.Compute(tsblBytes)
 
 	// App is treated as slot A, seq=1, good. Slot B is intentionally left
-	// blank in v1 — tsbl_ab will see only A valid and pick it; tsbl_bypass
+	// blank in v1; tsbl_ab will see only A valid and pick it; tsbl_bypass
 	// ignores B regardless. Multi-slot installs need a second project or a
 	// future studio feature (e.g. `make staged` style cli flag).
 	appFooter := manifest.FooterData{Seq: 1, Status: manifest.StatusGood}
@@ -136,7 +136,7 @@ func buildBootloaderChain(opts *Options, appBin []byte) (string, *BootloaderUsag
 // buildSlotOnlyUF2 packs just the app + its footer at the chosen slot's
 // addresses, skipping SSBL/TSBL entirely. Used for A/B field updates that
 // shouldn't disturb the bootloader. Slot A app uses seq=1; slot B uses
-// seq=2 (so TSBL-ab's higher-seq-wins selector picks B over A by default —
+// seq=2 (so TSBL-ab's higher-seq-wins selector picks B over A by default;
 // the freshly-pushed slot).
 func buildSlotOnlyUF2(opts *Options, appBin []byte) (string, *BootloaderUsage, error) {
 	var (

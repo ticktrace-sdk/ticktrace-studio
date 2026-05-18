@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -121,7 +121,7 @@ func TestNotMainFlashSkipped(t *testing.T) {
 
 func TestSortsOutOfOrderBlocks(t *testing.T) {
 	var buf bytes.Buffer
-	// Reverse order — final range slice must still be sorted ascending.
+	// Reverse order; final range slice must still be sorted ascending.
 	buf.Write(makeBlock(0, 0x10000200, 0, 2, FamilyRP2350ArmSecure, bytes.Repeat([]byte{3}, 256)))
 	buf.Write(makeBlock(0, 0x10000000, 1, 2, FamilyRP2350ArmSecure, bytes.Repeat([]byte{1}, 256)))
 	buf.Write(makeBlock(0, 0x10000100, 1, 2, FamilyRP2350ArmSecure, bytes.Repeat([]byte{2}, 256)))
@@ -161,7 +161,7 @@ func TestParseRealUF2(t *testing.T) {
 	path := filepath.Join(filepath.Dir(thisFile), "..", "..", "build", "blinky", "blinky.uf2")
 	img, err := ParseFile(path)
 	if err != nil {
-		t.Skipf("no real UF2 fixture available (%v) — skipping", err)
+		t.Skipf("no real UF2 fixture available (%v), skipping", err)
 		return
 	}
 	if len(img.Blocks) == 0 {
@@ -172,7 +172,7 @@ func TestParseRealUF2(t *testing.T) {
 	}
 	for _, r := range img.Ranges {
 		if r.Addr < 0x10000000 || r.Addr >= 0x20000000 {
-			// Not strictly an error — RAM images target SRAM — but flag it
+			// Not strictly an error (RAM images target SRAM) but flag it
 			// for visibility during this v1 bring-up.
 			t.Logf("range outside flash: addr=0x%08x len=%d", r.Addr, len(r.Data))
 		}

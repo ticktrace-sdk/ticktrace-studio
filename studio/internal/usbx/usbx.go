@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -79,7 +79,7 @@ type DeviceInfo struct {
 }
 
 // Device is the transport contract rpasmboot consumes. Implementations are
-// not safe for concurrent use — rpasmboot serializes all calls.
+// not safe for concurrent use; rpasmboot serializes all calls.
 type Device interface {
 	Info() DeviceInfo
 	Control(setup ControlSetup, data []byte, timeout time.Duration) (int, error)

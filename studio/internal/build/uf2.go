@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -39,7 +39,7 @@ const (
 	// Canonical UF2 family IDs from the microsoft/uf2 registry. Mirrored
 	// from tools/internal/uf2 so studio can pick the right ID by load
 	// address. The bootrom rejects SRAM-resident images unless they carry
-	// the absolute family ID — fix landed in tools/uf2.py (917d6f6).
+	// the absolute family ID; fix landed in tools/uf2.py (917d6f6).
 	uf2FamilyRP2350ArmS  uint32 = 0xE48BFF59
 	uf2FamilyAbsolute    uint32 = 0xE48BFF57
 )

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -109,7 +109,7 @@ func (c *Client) transact(op string, cmdID byte, argSize byte, args []byte, tran
 	}
 
 	// ACK is a zero-length transfer on the *opposite* direction endpoint.
-	// Picotool requests 1 byte and tolerates 0 — we do the same for compat.
+	// Picotool requests 1 byte and tolerates 0; we do the same for compat.
 	var spoon [1]byte
 	if isIn {
 		_, err := c.dev.BulkOut(spoon[:0], c.CmdTimeout)
@@ -179,7 +179,7 @@ func (c *Client) ExclusiveAccess(mode byte) error {
 	return c.transact("ExclusiveAccess", CmdExclusiveAccess, 1, args, 0, nil, nil, c.DataTimeout)
 }
 
-// ExitXIP — must be called before touching flash, so the QSPI peripheral
+// ExitXIP: must be called before touching flash, so the QSPI peripheral
 // leaves execute-in-place mode and accepts erase/write commands.
 func (c *Client) ExitXIP() error {
 	return c.transact("ExitXIP", CmdExitXIP, 0, nil, 0, nil, nil, c.DataTimeout)
@@ -202,7 +202,7 @@ func (c *Client) FlashErase(addr, size uint32) error {
 
 // Write sends data to addr in the device's address space. Works for both
 // flash (page-aligned, sectors previously erased) and SRAM (no alignment
-// constraint). The protocol layer doesn't enforce alignment — that's the
+// constraint). The protocol layer doesn't enforce alignment; that's the
 // caller's responsibility because flash and SRAM rules differ.
 func (c *Client) Write(addr uint32, data []byte) error {
 	if len(data) == 0 {
