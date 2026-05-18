@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -64,7 +64,7 @@ type Result struct {
 	// Memory is best-effort. Nil or partial if ld didn't print memory usage or
 	// `size` wasn't available; build still succeeded.
 	Memory *MemoryUsage
-	// Bootloader is populated only for projects with [bootloader] set —
+	// Bootloader is populated only for projects with [bootloader] set;
 	// breaks the firmware UF2 down by stage.
 	Bootloader *BootloaderUsage
 }
@@ -75,7 +75,7 @@ func Build(opts *Options) (*Result, error) {
 	}
 	tgt := opts.Resolved.Target
 	// Toolchain CWD: parent of the studio module root. This is the SDK root
-	// containing src/, include/, link/, examples/ — matching how the Makefile
+	// containing src/, include/, link/, examples/, matching how the Makefile
 	// is invoked. Relative `.include "src/nvic.S"` in .S files resolves here.
 	workDir := filepath.Dir(opts.Root)
 
@@ -93,7 +93,7 @@ func Build(opts *Options) (*Result, error) {
 		asArgs = append(asArgs, "-I", resolve(opts.Root, inc))
 	}
 	// Also expose the SDK root as an -I path so `.include "src/foo.S"` works
-	// even if the CWD differs (defence in depth — CWD is the primary mechanism).
+	// even if the CWD differs (defence in depth; CWD is the primary mechanism).
 	asArgs = append(asArgs, "-I", workDir)
 
 	objs := make([]string, 0, len(opts.Resolved.Sources))

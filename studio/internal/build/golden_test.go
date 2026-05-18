@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -37,7 +37,7 @@ import (
 
 // TestGoldenBlinky asserts that rpasm's blinky output is byte-identical to
 // the Makefile's. Requires arm-none-eabi-as on PATH and that `make build/blinky.bin`
-// has been run from the parent rp-asm directory beforehand (we run it).
+// has been run from the parent ticktrace directory beforehand (we run it).
 func TestGoldenBlinky(t *testing.T) {
 	if _, err := exec.LookPath("arm-none-eabi-as"); err != nil {
 		t.Skip("arm-none-eabi-as not on PATH")

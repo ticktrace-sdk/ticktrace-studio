@@ -1,10 +1,10 @@
-# rp-asm Studio — Build Guide
+# ticktrace Studio: Build Guide
 
-A practical blueprint for building rp-asm Studio: the visual configurator and build engine for the rp-asm assembly SDK.
+A practical blueprint for building ticktrace Studio: the visual configurator and build engine for the ticktrace assembly SDK.
 
 ## What we're building
 
-A desktop app that lets users configure, build, and flash assembly-language firmware for RP2040 and RP2350 targets without ever touching Make, CMake, or Kconfig directly. The GUI *is* the build system from the user's perspective. Kconfig is used internally as the catalog format for contributors authoring rp-asm modules.
+A desktop app that lets users configure, build, and flash assembly-language firmware for RP2040 and RP2350 targets without ever touching Make, CMake, or Kconfig directly. The GUI *is* the build system from the user's perspective. Kconfig is used internally as the catalog format for contributors authoring ticktrace modules.
 
 Sibling product to Pingo. Shares the ImmyGo framework, visual language, and AI-assist patterns.
 
@@ -14,19 +14,19 @@ Five layers, each independently testable. Build them in this order.
 
 ```
 ┌─────────────────────────────────────────────┐
-│  Layer 5 — GUI (Gio panels)                 │  Configure / Build log / Catalog source
+│  Layer 5 (GUI, Gio panels)                  │  Configure / Build log / Catalog source
 ├─────────────────────────────────────────────┤
-│  Layer 4 — Project state                    │  Selected features, target, pin maps
+│  Layer 4 (Project state)                    │  Selected features, target, pin maps
 ├─────────────────────────────────────────────┤
-│  Layer 3 — Build engine                     │  Invokes as / ld / elf2uf2
+│  Layer 3 (Build engine)                     │  Invokes as / ld / elf2uf2
 ├─────────────────────────────────────────────┤
-│  Layer 2 — Catalog parser                   │  Parses .kconfig files, evaluates expressions
+│  Layer 2 (Catalog parser)                   │  Parses .kconfig files, evaluates expressions
 ├─────────────────────────────────────────────┤
-│  Layer 1 — Catalog files (.kconfig)         │  Authored by contributors, ships with app
+│  Layer 1 (Catalog files, .kconfig)          │  Authored by contributors, ships with app
 └─────────────────────────────────────────────┘
 ```
 
-The bottom three layers are headless and have no UI dependencies. They can be exercised from a CLI or test harness long before any window opens. This is the single most important architectural decision in the project — protect it.
+The bottom three layers are headless and have no UI dependencies. They can be exercised from a CLI or test harness long before any window opens. This is the single most important architectural decision in the project; protect it.
 
 ## Tech stack
 
@@ -47,27 +47,27 @@ The bottom three layers are headless and have no UI dependencies. They can be ex
 rp-asm-studio/
 ├── cmd/
 │   ├── rpasm-studio/        Main GUI app entry point
-│   └── rpasm/               Headless CLI (build, flash, validate) — same engine, no GUI
+│   └── rpasm/               Headless CLI (build, flash, validate): same engine, no GUI
 ├── internal/
-│   ├── catalog/             Layer 2 — Kconfig parser, AST, expression evaluator
+│   ├── catalog/             Layer 2: Kconfig parser, AST, expression evaluator
 │   │   ├── lexer.go
 │   │   ├── parser.go
 │   │   ├── ast.go
 │   │   └── eval.go
-│   ├── project/             Layer 4 — project state, TOML load/save, validation
+│   ├── project/             Layer 4: project state, TOML load/save, validation
 │   │   ├── state.go
 │   │   ├── toml.go
 │   │   └── validate.go
-│   ├── build/               Layer 3 — toolchain invocation, mtime tracking, UF2 generation
+│   ├── build/               Layer 3: toolchain invocation, mtime tracking, UF2 generation
 │   │   ├── engine.go
 │   │   ├── toolchain.go
 │   │   └── uf2.go
-│   └── ui/                  Layer 5 — Gio panels
+│   └── ui/                  Layer 5: Gio panels
 │       ├── configure.go
 │       ├── buildlog.go
 │       ├── catalog.go       Developer mode source view
 │       └── theme.go         Reuse from ImmyGo
-├── catalog/                 Layer 1 — Kconfig files, embedded via go:embed
+├── catalog/                 Layer 1: Kconfig files, embedded via go:embed
 │   ├── system/
 │   │   ├── boot.kconfig
 │   │   └── crystal.kconfig
@@ -80,7 +80,7 @@ rp-asm-studio/
 │       ├── rp2040.kconfig
 │       ├── rp2350-arm.kconfig
 │       └── rp2350-riscv.kconfig
-├── asm/                     The actual rp-asm assembly sources, embedded
+├── asm/                     The actual ticktrace assembly sources, embedded
 │   ├── system/
 │   ├── peripherals/
 │   └── linker/
@@ -93,19 +93,19 @@ The `cmd/rpasm` headless CLI is non-negotiable. It exercises Layers 1-4 without 
 
 Ship something usable at every phase. Don't build all five layers in parallel.
 
-### Phase 0.1 — Catalog parser (week 1-2)
+### Phase 0.1: Catalog parser (week 1-2)
 
 Goal: parse a `.kconfig` file into an AST and walk it.
 
 - Implement the lexer for the Kconfig subset you actually need: `config`, `bool`, `int`, `string`, `choice`, `endchoice`, `default`, `range`, `depends on`, `select`, `help`, `if`, `endif`, `menu`, `endmenu`, `source`.
 - Skip the parts you don't need: `mainmenu`, `comment`, `option`, `prompt` (use the inline string instead), `imply`, `visible if`.
 - Build the AST as plain Go structs. No reflection, no codegen.
-- Implement the expression evaluator for `depends on` / `default if` / `select if` — it's a tiny boolean language: `&&`, `||`, `!`, `=`, `!=`, parens, symbol refs, literal `y` / `n` / `m` (skip `m`, you don't need tristate).
+- Implement the expression evaluator for `depends on` / `default if` / `select if`; it's a tiny boolean language: `&&`, `||`, `!`, `=`, `!=`, parens, symbol refs, literal `y` / `n` / `m` (skip `m`, you don't need tristate).
 - Write golden tests against ~20 hand-crafted `.kconfig` snippets covering each construct.
 
 Done when: you can load `catalog/peripherals/uart.kconfig` and print the resulting symbol table.
 
-### Phase 0.2 — Project state and CLI (week 3)
+### Phase 0.2: Project state and CLI (week 3)
 
 Goal: a working `rpasm` command that resolves a project file.
 
@@ -116,7 +116,7 @@ Goal: a working `rpasm` command that resolves a project file.
 
 Done when: you can hand-write a `blink-led.rpasm` TOML file and have `rpasm validate` report exactly which symbols are enabled.
 
-### Phase 0.3 — Build engine (week 4-5)
+### Phase 0.3: Build engine (week 4-5)
 
 Goal: `rpasm build <project.rpasm>` produces a working `.uf2`.
 
@@ -124,11 +124,11 @@ Goal: `rpasm build <project.rpasm>` produces a working `.uf2`.
 - Implement the toolchain wrapper: detect `arm-none-eabi-as` / `riscv32-unknown-elf-as` on PATH, run with the right flags per target.
 - Generate the linker script from a template based on target memory map and selected features.
 - Invoke `ld`, then a Go-native UF2 generator (UF2 format is trivial: 512-byte blocks with a known header).
-- Track mtimes for incremental builds — keep a `build/.cache.json` mapping source path → hash + output path.
+- Track mtimes for incremental builds; keep a `build/.cache.json` mapping source path → hash + output path.
 
 Done when: `rpasm build` produces a `.uf2` that boots on a real Pico 2 and blinks the LED.
 
-### Phase 0.4 — Minimal GUI (week 6-8)
+### Phase 0.4: Minimal GUI (week 6-8)
 
 Goal: the configure view from the mockup, end-to-end.
 
@@ -140,7 +140,7 @@ Goal: the configure view from the mockup, end-to-end.
 
 Done when: a user can launch the app, pick a target, toggle UART on, click Build, and get a UF2.
 
-### Phase 0.5 — Build log view (week 9)
+### Phase 0.5: Build log view (week 9)
 
 Goal: the second view from the mockup.
 
@@ -149,7 +149,7 @@ Goal: the second view from the mockup.
 - Problems: parse assembler error output (`file.s:line:col: error: ...`), present as clickable rows.
 - Memory: parse `ld --print-memory-usage` output, render the segmented bar.
 
-### Phase 0.6 — Catalog source view (developer mode, week 10)
+### Phase 0.6: Catalog source view (developer mode, week 10)
 
 Goal: the third view from the mockup.
 
@@ -158,10 +158,10 @@ Goal: the third view from the mockup.
 - Preview pane: same components as the user-facing detail panel, rendered from the just-parsed AST.
 - Hide behind a Developer mode toggle in app settings.
 
-### Phase 1.0 — Polish and ship (week 11-12)
+### Phase 1.0: Polish and ship (week 11-12)
 
 - Code signing for macOS and Windows binaries (Amken cert).
-- Update channel — embed a version check that pings a static `latest.json` on the Amken site.
+- Update channel: embed a version check that pings a static `latest.json` on the Amken site.
 - Crash reporter that writes local logs to `~/.rpasm-studio/crashes/` and offers to open them; no telemetry.
 - Sample projects bundled in the binary, accessible from a File → New from sample menu.
 - Documentation site (separate effort).
@@ -209,7 +209,7 @@ sources = ["uart.s", "uart_irq.s", "uart_baud.s"]
 sources_if_UART_IRQ = ["uart_irq.s"]   # conditional inclusion
 ```
 
-Keep `.kconfig` files small and topical — one peripheral per file. The catalog should grow horizontally (more files) not vertically (giant monolithic files).
+Keep `.kconfig` files small and topical: one peripheral per file. The catalog should grow horizontally (more files) not vertically (giant monolithic files).
 
 ## Project file format
 
@@ -266,10 +266,10 @@ Every step returns errors with enough context that the GUI can highlight the off
 
 The killer cross-product feature. Two integration points:
 
-1. **Pin assignment links**: in rp-asm Studio's detail panel, pin fields show an "open in Pingo" link. Clicking it launches Pingo (or focuses an existing window) with the current pin map pre-loaded and the relevant pin highlighted.
+1. **Pin assignment links**: in ticktrace Studio's detail panel, pin fields show an "open in Pingo" link. Clicking it launches Pingo (or focuses an existing window) with the current pin map pre-loaded and the relevant pin highlighted.
 2. **Shared pin map format**: define a small TOML schema both apps read and write. Initially just a flat `pin_name → GPIO_N` table; grow as needed.
 
-Implement via a local IPC mechanism — Unix domain socket on macOS/Linux, named pipe on Windows. Pingo and rp-asm Studio register on startup; if the other is already running, they negotiate the handoff.
+Implement via a local IPC mechanism: Unix domain socket on macOS/Linux, named pipe on Windows. Pingo and ticktrace Studio register on startup; if the other is already running, they negotiate the handoff.
 
 ## Testing strategy
 
@@ -280,7 +280,7 @@ Implement via a local IPC mechanism — Unix domain socket on macOS/Linux, named
 
 ## Distribution
 
-Single statically-linked Go binary per platform. No installer for v1 — users download a zip, drag the app to Applications or run it directly.
+Single statically-linked Go binary per platform. No installer for v1; users download a zip, drag the app to Applications or run it directly.
 
 - macOS: universal binary (arm64 + amd64), notarized, code-signed
 - Windows: signed `.exe`, optional MSIX later

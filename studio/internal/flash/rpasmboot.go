@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -46,7 +46,7 @@ const chunkSize = 4096
 // doRpasmboot loads a UF2 over PICOBOOT using our in-tree rpasmboot client.
 // Supports three patterns: pure XIP (all flash ranges), SRAM-only (all SRAM
 // ranges, boots via REBOOT2 RAM_IMAGE), and mixed (flash + SRAM ranges in one
-// UF2 — common when SRAM holds pre-loaded data and code XIPs from flash).
+// UF2, common when SRAM holds pre-loaded data and code XIPs from flash).
 func doRpasmboot(uf2Path string, logf func(string)) (*Result, error) {
 	img, err := uf2.ParseFile(uf2Path)
 	if err != nil {
@@ -126,7 +126,7 @@ func doRpasmboot(uf2Path string, logf func(string)) (*Result, error) {
 	if err := doReboot(c, flashRanges, sramRanges, logf); err != nil {
 		// REBOOT2 races device disappearance; transport errors on the ACK are
 		// expected when the device resets mid-transfer.
-		logf(fmt.Sprintf("reboot returned %v (device likely already detached — ignoring)", err))
+		logf(fmt.Sprintf("reboot returned %v (device likely already detached, ignoring)", err))
 	}
 	return &Result{Method: MethodRpasmboot, Target: dev.Info().BusAddr}, nil
 }

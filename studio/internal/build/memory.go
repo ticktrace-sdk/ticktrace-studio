@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -33,7 +33,7 @@ import (
 // MemoryUsage is the per-region and per-section breakdown for a built ELF.
 // Regions come from `ld --print-memory-usage`; sections from `<prefix>size -A`.
 // Either field may be empty if the tool was unavailable or the output didn't
-// parse — callers should treat MemoryUsage as best-effort, not authoritative.
+// parse; callers should treat MemoryUsage as best-effort, not authoritative.
 type MemoryUsage struct {
 	Regions  []MemoryRegion
 	Sections []MemorySection
@@ -158,7 +158,7 @@ func parseSizeSections(s string) []MemorySection {
 }
 
 // runSize invokes `<prefix>size -A <elf>` and returns parsed sections. Returns
-// nil (no error) if size isn't available or fails — the build artifacts still
+// nil (no error) if size isn't available or fails; the build artifacts still
 // exist regardless.
 func runSize(sizeBin, elf, workDir string) []MemorySection {
 	if sizeBin == "" {

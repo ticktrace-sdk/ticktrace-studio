@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -36,7 +36,7 @@ import (
 
 const udevRulePath = "/etc/udev/rules.d/99-rpasmboot.rules"
 
-const udevRuleContent = `# rpasmboot — Raspberry Pi RP2 BOOTSEL USB access for non-root users
+const udevRuleContent = `# rpasmboot: Raspberry Pi RP2 BOOTSEL USB access for non-root users
 SUBSYSTEM=="usb", ATTRS{idVendor}=="2e8a", MODE="0666", TAG+="uaccess"
 `
 
@@ -49,7 +49,7 @@ func checkBoard() error {
 		if _, err := os.Stat(udevRulePath); err == nil {
 			fmt.Printf("  udev:    %s present\n", udevRulePath)
 		} else {
-			fmt.Printf("  udev:    %s missing — non-root flashing will fail with EACCES\n", udevRulePath)
+			fmt.Printf("  udev:    %s missing; non-root flashing will fail with EACCES\n", udevRulePath)
 			fmt.Println("  to install, run:")
 			fmt.Printf("    sudo tee %s > /dev/null <<'RULE'\n%sRULE\n", udevRulePath, udevRuleContent)
 			fmt.Println("    sudo udevadm control --reload && sudo udevadm trigger")
@@ -139,7 +139,7 @@ func cmdBootInfo(args []string) int {
 	}
 	for _, s := range slots {
 		if !s.Valid {
-			fmt.Printf("slot %s @ 0x%08x: (empty — footer has no RPBL magic)\n", s.Name, s.Base)
+			fmt.Printf("slot %s @ 0x%08x: (empty; footer has no RPBL magic)\n", s.Name, s.Base)
 			continue
 		}
 		fmt.Printf("slot %s @ 0x%08x: status=%s seq=%d payload=%d B crc=0x%08x\n",

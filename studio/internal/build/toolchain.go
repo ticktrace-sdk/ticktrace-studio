@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -35,7 +35,7 @@ type Toolchain struct {
 	As      string
 	Ld      string
 	Objcopy string
-	Size    string // optional — used for per-section memory breakdown
+	Size    string // optional; used for per-section memory breakdown
 }
 
 func Detect(prefix string) (*Toolchain, error) {
@@ -60,7 +60,7 @@ func Detect(prefix string) (*Toolchain, error) {
 	if len(missing) > 0 {
 		return nil, fmt.Errorf("toolchain binaries not found on PATH: %s", strings.Join(missing, ", "))
 	}
-	// size is optional — old toolchains may lack it. Absence isn't a fatal
+	// size is optional; old toolchains may lack it. Absence isn't a fatal
 	// error; the engine just skips per-section breakdown.
 	if path, err := exec.LookPath(prefix + "size"); err == nil {
 		t.Size = path

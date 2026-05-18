@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -39,14 +39,14 @@ import (
 )
 
 // Linux usbfs ioctl numbers, computed for 64-bit (8-byte pointer) builds.
-// 32-bit Linux is not a supported v1 target — bulk/control structs change
+// 32-bit Linux is not a supported v1 target; bulk/control structs change
 // size with pointer width, so the ioctl numbers would differ.
 const (
 	ioctlUsbdevfsControl          = 0xC0185500 // _IOWR('U', 0, struct usbdevfs_ctrltransfer) size=24
 	ioctlUsbdevfsBulk             = 0xC0185502 // _IOWR('U', 2, struct usbdevfs_bulktransfer) size=24
 	ioctlUsbdevfsClaimInterface   = 0x8004550F // _IOR('U', 15, unsigned int)
 	ioctlUsbdevfsReleaseInterface = 0x80045510 // _IOR('U', 16, unsigned int)
-	ioctlUsbdevfsDisconnect       = 0x00005516 // _IO('U', 22) — bound to a USBDEVFS_IOCTL request
+	ioctlUsbdevfsDisconnect       = 0x00005516 // _IO('U', 22), bound to a USBDEVFS_IOCTL request
 	ioctlUsbdevfsIoctl            = 0xC0105512 // _IOWR('U', 18, struct usbdevfs_ioctl) size=16
 )
 
@@ -133,7 +133,7 @@ func Enumerate() ([]Candidate, error) {
 
 	var out []Candidate
 	for _, e := range entries {
-		// USB device dirs are like "3-4" — they don't contain ':'. Interface
+		// USB device dirs are like "3-4"; they don't contain ':'. Interface
 		// dirs are "3-4:1.1". Skip the latter at the top level; we'll find
 		// them under their parent device dir.
 		if strings.Contains(e.Name(), ":") {

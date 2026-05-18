@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -175,7 +175,7 @@ func mergeRanges(blocks []Block) []Range {
 				continue
 			}
 			if b.TargetAddr < end {
-				// Overlap — UF2 files shouldn't produce this, but tolerate
+				// Overlap; UF2 files shouldn't produce this, but tolerate
 				// duplicate-address blocks by keeping the new payload.
 				offset := int(end - b.TargetAddr)
 				if offset < len(b.Payload) {
@@ -189,7 +189,7 @@ func mergeRanges(blocks []Block) []Range {
 	return out
 }
 
-// TotalBytes returns the sum of all Range payload sizes — i.e. the count of
+// TotalBytes returns the sum of all Range payload sizes, i.e. the count of
 // bytes that will be written to flash.
 func (img *Image) TotalBytes() uint32 {
 	var n uint32

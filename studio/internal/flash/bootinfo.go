@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -53,7 +53,7 @@ type SlotInfo struct {
 
 // ReadBootInfo opens the first BOOTSEL device, exits XIP, reads both slot
 // footers, and parses them. Returns slot info for both A and B even when
-// one (or both) is empty/invalid — caller inspects Valid + Footer.Status.
+// one (or both) is empty/invalid; caller inspects Valid + Footer.Status.
 func ReadBootInfo() ([]SlotInfo, error) {
 	dev, err := usbx.Open(usbx.OpenOptions{})
 	if err != nil {
@@ -68,7 +68,7 @@ func ReadBootInfo() ([]SlotInfo, error) {
 	if err := c.ExclusiveAccess(rpasmboot.Exclusive); err != nil {
 		return nil, fmt.Errorf("exclusive_access: %w", err)
 	}
-	// EXIT_XIP is required before reading flash via PICOBOOT — otherwise the
+	// EXIT_XIP is required before reading flash via PICOBOOT; otherwise the
 	// QSPI is in execute-in-place mode and the bootrom returns junk.
 	if err := c.ExitXIP(); err != nil {
 		return nil, fmt.Errorf("exit_xip: %w", err)
@@ -85,7 +85,7 @@ func ReadBootInfo() ([]SlotInfo, error) {
 		}
 		f, err := manifest.Unmarshal(data)
 		if err != nil {
-			// Erased flash or unrecognised content — leave Valid=false.
+			// Erased flash or unrecognised content; leave Valid=false.
 			continue
 		}
 		slots[i].Valid = true

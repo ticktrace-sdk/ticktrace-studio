@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -32,7 +32,7 @@ import (
 
 // BoardState describes whether an RP2350 / RPI-RP2 board is reachable in
 // BOOTSEL mode right now. Filled by scanning /proc/mounts for the canonical
-// drive labels. picotool USB-only access isn't checked here — it would require
+// drive labels. picotool USB-only access isn't checked here; it would require
 // either invoking picotool (subprocess cost) or libusb directly; the mount
 // check is sufficient because picotool's own load path also uses USB and
 // effectively requires the same board attachment state.

@@ -1,8 +1,8 @@
 // SPDX-License-Identifier: AGPL-3.0-or-later
 //
-// Copyright (C) 2026 Amken LLC <https://amken.io>
+// Copyright (C) 2026 Amken LLC <https://www.amken.us>
 //
-// This file is part of the Amken RP2350 Assembly SDK.
+// This file is part of the ticktrace Assembly SDK.
 //
 // This program is free software: you can redistribute it and/or modify
 // it under the terms of the GNU Affero General Public License as
@@ -76,12 +76,12 @@ type appState struct {
 	// Categories in canonical order, derived from module Order.
 	categories []string
 
-	// Target dropdown — populated from catalog.Targets.
+	// Target dropdown, populated from catalog.Targets.
 	targetDropdown     *ui.DropdownView
 	bootloaderDropdown *ui.DropdownView
 	targetNames    []string
 
-	// Example picker — dropdown is populated from <parent>/examples/*.S.
+	// Example picker; dropdown is populated from <parent>/examples/*.S.
 	// allExampleNames/allExamplePaths are the unfiltered universe (index 0 is
 	// always the synthetic 'blinky' from src/main.S). exampleFilter is the
 	// search string; dropdown contents are recomputed each frame from the
@@ -92,7 +92,7 @@ type appState struct {
 	exampleFilter    *ui.InputView
 	lastFilterApplied string
 
-	// Layout dropdown — flash or sram.
+	// Layout dropdown: flash or sram.
 	layoutDropdown *ui.DropdownView
 
 	// Project name input.
@@ -110,14 +110,14 @@ type appState struct {
 	examplesLayout string
 	customLayout   string
 
-	// Custom-mode only — path to a user-provided .S file.
+	// Custom-mode only: path to a user-provided .S file.
 	userSourceInput *ui.InputView
 
-	// Project save/load — file path defaults to <root>/projects/<name>.rpasm.toml
+	// Project save/load. File path defaults to <root>/projects/<name>.rpasm.toml
 	// at save time but the user can override.
 	projectPathInput *ui.InputView
 
-	// Build state. The "currently flashable UF2" is NOT cached here — it's
+	// Build state. The "currently flashable UF2" is NOT cached here; it's
 	// derived from inputs every frame via expectedUf2(), so changing the
 	// example dropdown immediately retargets Flash without needing a rebuild.
 	status    *ui.State[string]
@@ -185,13 +185,13 @@ func newApp(root string, cat *catalog.Catalog) *appState {
 
 	// Default Layout depends on the initial mode (Examples). Examples mode
 	// prefers SRAM (faster iteration, doesn't wear flash); Custom mode prefers
-	// flash (conservative — persists across power cycles). Switching tabs
+	// flash (conservative; persists across power cycles). Switching tabs
 	// flips the default; user can still override per-build.
 	layoutDropdown := ui.Dropdown("flash", "sram").SetSelected(1) // 1 = sram
 
 	// Bootloader knob. Index 0 = none (default; produces <name>.uf2),
 	// 1 = bypass (single-slot chain), 2 = ab (A/B + rollback). The build
-	// engine requires layout=flash when this is non-none — set both
+	// engine requires layout=flash when this is non-none; set both
 	// together or you'll get a build-time error.
 	bootloaderDropdown := ui.Dropdown("(no bootloader)", "bypass", "ab").SetSelected(0)
 
@@ -286,7 +286,7 @@ func newApp(root string, cat *catalog.Catalog) *appState {
 }
 
 // expectedUf2 returns the canonical UF2 output path for the current
-// (Name, Example) inputs — i.e. the file `Build` would produce, and the file
+// (Name, Example) inputs, i.e. the file `Build` would produce, and the file
 // `Flash` will send to the board. Computed fresh every frame so dropdown
 // changes are reflected immediately.
 func (a *appState) expectedUf2() string {
@@ -339,7 +339,7 @@ func (a *appState) run() {
 		}
 	}()
 
-	ui.Run("rp-asm Studio", func() ui.View {
+	ui.Run("ticktrace Studio", func() ui.View {
 		return ui.VStack(
 			a.modeTabBar,
 			ui.Divider(),
@@ -419,7 +419,7 @@ func (a *appState) onLoadProject() {
 // resolveProjectPath turns a user-typed path (possibly relative) into an
 // absolute one. Tries, in order: as-is (absolute or CWD-relative), studio
 // root, SDK root (parent of studio). Returns a wrapped error listing the
-// candidates if none exist — much friendlier than "no such file or folder".
+// candidates if none exist; much friendlier than "no such file or folder".
 func (a *appState) resolveProjectPath(raw string) (string, error) {
 	if filepath.IsAbs(raw) {
 		if _, err := os.Stat(raw); err == nil {
@@ -457,7 +457,7 @@ func (a *appState) onBrowseProject() {
 		return
 	}
 	if picked == "" {
-		return // user cancelled — no fuss
+		return // user cancelled, no fuss
 	}
 	a.projectPathInput.SetValue(picked)
 	// Auto-load: Browse-then-click-Build is the obvious flow; making the
@@ -493,7 +493,7 @@ func (a *appState) captureProject() *project.Project {
 		p.ExampleName = exName
 		if exPath != "" {
 			// Persist a portable relative path (relative to studio root's
-			// parent — i.e. the SDK root, which is the canonical CWD).
+			// parent, i.e. the SDK root, which is the canonical CWD).
 			parent := filepath.Dir(a.root)
 			if rel, err := filepath.Rel(parent, exPath); err == nil && !strings.HasPrefix(rel, "..") {
 				p.UserSource.Files = []string{rel}
@@ -596,7 +596,7 @@ func (a *appState) applyProject(p *project.Project) {
 		if len(p.UserSource.Files) > 0 {
 			a.userSourceInput.SetValue(p.UserSource.Files[0])
 		}
-		// Restore feature toggles — only for symbols the TOML explicitly
+		// Restore feature toggles, only for symbols the TOML explicitly
 		// mentions. A missing key returns false from p.Features which
 		// would otherwise wrongly *override* catalog defaults (e.g. STARTUP
 		// is default=true; if the TOML doesn't list it, we must not flip
@@ -665,7 +665,7 @@ func readExampleHeader(path string) []string {
 }
 
 // toolsRow shows USB-access (udev) status on Linux plus the live BOOTSEL
-// board badge. v1 uses in-tree rpasmboot — no external tool install, so the
+// board badge. v1 uses in-tree rpasmboot, no external tool install, so the
 // only setup step a user might need is the udev rule.
 func (a *appState) toolsRow() ui.View {
 	board := a.boardSt.Get()
@@ -675,7 +675,7 @@ func (a *appState) toolsRow() ui.View {
 		if a.udevOK.Get() {
 			row = append(row, ui.Text("udev: rules installed").Small())
 		} else {
-			row = append(row, ui.Text("udev: rules missing — run `rpasm doctor` for install command").Small())
+			row = append(row, ui.Text("udev: rules missing; run `rpasm doctor` for install command").Small())
 		}
 		row = append(row, ui.Spacer())
 	}
@@ -749,7 +749,7 @@ func detectUdevRule() bool {
 }
 
 // topBar adapts to window width:
-//   - wide  (>=1300 dp): single row — title | spacer | config | actions
+//   - wide  (>=1300 dp): single row: title | spacer | config | actions
 //   - narrow (<1300 dp): two rows
 //       row 1: title | spacer | actions     (Build/Flash always reachable)
 //       row 2: config controls               (dropdowns/inputs, may stack tightly)
@@ -762,7 +762,7 @@ func (a *appState) topBar() ui.View {
 	return ui.Responsive(
 		ui.At(0, func() ui.View {
 			rowTitle := append([]ui.View{
-				ui.Text("rp-asm Studio").Title(),
+				ui.Text("ticktrace Studio").Title(),
 				ui.Spacer(),
 			}, actions...)
 			return ui.VStack(
@@ -771,7 +771,7 @@ func (a *appState) topBar() ui.View {
 			).Spacing(ui.SpaceSm)
 		}),
 		ui.At(1300, func() ui.View {
-			row := []ui.View{ui.Text("rp-asm Studio").Title(), ui.Spacer()}
+			row := []ui.View{ui.Text("ticktrace Studio").Title(), ui.Spacer()}
 			row = append(row, config...)
 			row = append(row, actions...)
 			return ui.HStack(row...).Spacing(ui.SpaceMd).Center()
@@ -864,7 +864,7 @@ func (a *appState) selectedModulesView() ui.View {
 	if len(syms) == 0 {
 		return ui.VStack(
 			header,
-			ui.Text("(none — user source will be built standalone)").Small(),
+			ui.Text("(none; user source will be built standalone)").Small(),
 		).Spacing(ui.SpaceXS)
 	}
 	var rows []ui.View
@@ -961,7 +961,7 @@ func (a *appState) tabStrip(active string, problemCount int, haveMemory bool) ui
 		memoryBtn = memoryBtn.Outline()
 	}
 	if !haveMemory {
-		// Keep the button visible but neuter it — clicking before a build
+		// Keep the button visible but neuter it; clicking before a build
 		// drops the user on an empty pane, which is fine.
 		memoryBtn = memoryBtn.Disabled()
 	}
@@ -973,7 +973,7 @@ func (a *appState) memoryBody(mem *build.MemoryUsage) ui.View {
 	empty := (mem == nil || (len(mem.Regions) == 0 && len(mem.Sections) == 0)) && bl == nil
 	if empty {
 		return ui.Scroll(ui.VStack(
-			ui.Text("(memory info not available — run Build first)").Small(),
+			ui.Text("(memory info not available; run Build first)").Small(),
 		))
 	}
 	rows := []ui.View{}
@@ -1029,7 +1029,7 @@ func (a *appState) outputBody() ui.View {
 	lines := a.logLines.Get()
 	logViews := make([]ui.View, 0, len(lines)+1)
 	if len(lines) == 0 {
-		logViews = append(logViews, ui.Text("(no output yet — click Build)").Small())
+		logViews = append(logViews, ui.Text("(no output yet; click Build)").Small())
 	}
 	for _, line := range lines {
 		logViews = append(logViews, ui.Text(line).Small())
@@ -1040,7 +1040,7 @@ func (a *appState) outputBody() ui.View {
 func (a *appState) problemsBody(problems []Problem) ui.View {
 	if len(problems) == 0 {
 		return ui.Scroll(ui.VStack(
-			ui.Text("(no problems — Build hasn't surfaced any errors or warnings)").Small(),
+			ui.Text("(no problems; Build hasn't surfaced any errors or warnings)").Small(),
 		))
 	}
 	rows := make([]ui.View, 0, len(problems))
@@ -1214,7 +1214,7 @@ func (a *appState) logMemorySummary(r *build.Result) {
 }
 
 func (a *appState) onFlashDisabled() {
-	a.status.Set("Click Build first — no UF2 yet.")
+	a.status.Set("Click Build first; no UF2 yet.")
 	a.log("flash: no UF2 has been built yet in this session. Click Build, then Flash.")
 }
 
@@ -1229,8 +1229,8 @@ func (a *appState) onFlash() {
 	// Re-check on disk: dropdown could have changed between render and click,
 	// or someone could have rm'd the file.
 	if _, err := os.Stat(uf2); err != nil {
-		a.status.Set("UF2 missing — click Build first.")
-		a.log("flash: expected " + uf2 + " — not on disk; click Build first.")
+		a.status.Set("UF2 missing; click Build first.")
+		a.log("flash: expected " + uf2 + ", not on disk; click Build first.")
 		return
 	}
 	a.flashing.Set(true)
@@ -1374,7 +1374,7 @@ func studioRoot() string {
 	if err != nil {
 		fatal("getwd: %v", err)
 	}
-	// Walk up first — covers the common case where CWD is inside studio/.
+	// Walk up first; covers the common case where CWD is inside studio/.
 	for d := cwd; ; {
 		if _, err := os.Stat(filepath.Join(d, "go.mod")); err == nil {
 			if _, err := os.Stat(filepath.Join(d, "catalog")); err == nil {
@@ -1491,7 +1491,7 @@ func parseProblem(line string) (Problem, bool) {
 // loadExamples returns the example dropdown contents as parallel slices of
 // display names and absolute source paths.
 //
-// Index 0 is always the canonical hardware blinky from <parent>/src/main.S —
+// Index 0 is always the canonical hardware blinky from <parent>/src/main.S;
 // the default the GUI selects on startup. Indices 1..N are the contents of
 // <parent>/examples/*.S, sorted by basename. <parent> is the SDK root that
 // holds Makefile, src/, include/, examples/.
