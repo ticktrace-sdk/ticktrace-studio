@@ -4,4 +4,4 @@ category = "system"
 order = 10
 default = true
 description = "Reset handler, vector table, IMAGE_DEF picobin block. Always required."
-sources = ["../src/startup.S"]
+sources = ["src/startup.S"]

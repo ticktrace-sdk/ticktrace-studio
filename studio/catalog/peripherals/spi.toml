@@ -4,4 +4,4 @@ category = "peripherals"
 order = 120
 default = true
 description = "PL022 SPI, both instances."
-sources = ["../src/spi.S"]
+sources = ["src/spi.S"]

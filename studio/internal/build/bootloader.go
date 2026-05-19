@@ -44,13 +44,13 @@ const (
 	slotABase      uint32 = 0x10008000
 	slotAFooter    uint32 = 0x1007FF00
 
-	ldScriptSSBL    = "../link/ssbl.ld"
-	ldScriptTSBL    = "../link/tsbl.ld"
-	ldScriptSlotA   = "../link/app_at_0x10008000.ld"
-	ldScriptSlotB   = "../link/app_at_0x10080000.ld"
-	srcSSBL         = "../src/ssbl/ssbl.S"
-	srcCRC32        = "../src/crc32.S"
-	tsblSrcTemplate = "../src/tsbl/tsbl_%s.S"
+	ldScriptSSBL    = "link/ssbl.ld"
+	ldScriptTSBL    = "link/tsbl.ld"
+	ldScriptSlotA   = "link/app_at_0x10008000.ld"
+	ldScriptSlotB   = "link/app_at_0x10080000.ld"
+	srcSSBL         = "src/ssbl/ssbl.S"
+	srcCRC32        = "src/crc32.S"
+	tsblSrcTemplate = "src/tsbl/tsbl_%s.S"
 )
 
 // Slot capacities (mirror include/bootloader.inc). SSBL gets the first 4 KiB.
@@ -189,7 +189,7 @@ func buildSlotOnlyUF2(opts *Options, appBin []byte) (string, *BootloaderUsage, e
 // given stage prefix so they don't collide with the app's outputs.
 func buildStage(opts *Options, stageName string, sources []string, ldScript string, stdout, stderr io.Writer) ([]byte, error) {
 	tgt := opts.Resolved.Target
-	workDir := filepath.Dir(opts.Root)
+	workDir := opts.sdk()
 	stageDir := filepath.Join(opts.OutDir, "_"+stageName)
 	if err := os.MkdirAll(stageDir, 0o755); err != nil {
 		return nil, err
@@ -197,13 +197,13 @@ func buildStage(opts *Options, stageName string, sources []string, ldScript stri
 
 	asArgs := append([]string{}, tgt.AsFlags...)
 	for _, inc := range tgt.AsIncludes {
-		asArgs = append(asArgs, "-I", resolve(opts.Root, inc))
+		asArgs = append(asArgs, "-I", resolve(opts.sdk(), inc))
 	}
 	asArgs = append(asArgs, "-I", workDir)
 
 	var objs []string
 	for _, src := range sources {
-		srcPath := resolve(opts.Root, src)
+		srcPath := resolve(opts.sdk(), src)
 		objPath := filepath.Join(stageDir, objectName(src)+".o")
 		args := append([]string{}, asArgs...)
 		args = append(args, "-o", objPath, srcPath)
@@ -215,7 +215,7 @@ func buildStage(opts *Options, stageName string, sources []string, ldScript stri
 
 	elf := filepath.Join(stageDir, stageName+".elf")
 	mapFile := filepath.Join(stageDir, stageName+".map")
-	ldArgs := []string{"-T", resolve(opts.Root, ldScript)}
+	ldArgs := []string{"-T", resolve(opts.sdk(), ldScript)}
 	ldArgs = append(ldArgs, tgt.LdFlags...)
 	ldArgs = append(ldArgs, "-Map="+mapFile, "-o", elf)
 	ldArgs = append(ldArgs, objs...)

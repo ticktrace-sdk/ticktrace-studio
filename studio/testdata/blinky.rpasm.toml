@@ -6,4 +6,4 @@ rpasm_version = "1.0"
 [features]
 
 [user_source]
-files = ["../src/main.S"]
+files = ["src/main.S"]

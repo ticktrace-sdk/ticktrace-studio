@@ -4,4 +4,4 @@ category = "system"
 order = 190
 default = true
 description = "NVIC-priority kernel, QV-style scheduler."
-sources = ["../src/sched.S"]
+sources = ["src/sched.S"]

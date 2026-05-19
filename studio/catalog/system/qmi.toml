@@ -4,4 +4,4 @@ category = "system"
 order = 220
 default = true
 description = "QMI flash speed tuning."
-sources = ["../src/qmi.S"]
+sources = ["src/qmi.S"]

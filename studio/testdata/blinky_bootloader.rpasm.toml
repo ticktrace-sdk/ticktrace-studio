@@ -10,4 +10,4 @@ tsbl = "ab"
 BOOT_API = true
 
 [user_source]
-files = ["../src/main.S"]
+files = ["src/main.S"]

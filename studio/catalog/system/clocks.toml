@@ -4,4 +4,4 @@ category = "system"
 order = 60
 default = true
 description = "System clock setup and dividers."
-sources = ["../src/clocks.S"]
+sources = ["src/clocks.S"]

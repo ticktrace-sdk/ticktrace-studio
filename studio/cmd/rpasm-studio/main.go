@@ -56,17 +56,19 @@ var outputScroll = giowidget.List{List: layout.List{Axis: layout.Vertical}}
 
 func main() {
 	root := studioRoot()
+	sdk := sdkRoot(root)
 	cat, err := catalog.Load(filepath.Join(root, "catalog"))
 	if err != nil {
 		fatal("load catalog: %v", err)
 	}
 
-	app := newApp(root, cat)
+	app := newApp(root, sdk, cat)
 	app.run()
 }
 
 type appState struct {
 	root    string
+	sdkRoot string
 	catalog *catalog.Catalog
 
 	// Modules sorted by Order for canonical display.
@@ -147,7 +149,7 @@ type Problem struct {
 	Message  string
 }
 
-func newApp(root string, cat *catalog.Catalog) *appState {
+func newApp(root, sdk string, cat *catalog.Catalog) *appState {
 	modOrder := make([]*catalog.Module, 0, len(cat.Modules))
 	for _, m := range cat.Modules {
 		modOrder = append(modOrder, m)
@@ -198,7 +200,7 @@ func newApp(root string, cat *catalog.Catalog) *appState {
 	nameInput := ui.Input().Placeholder("Project name")
 	nameInput.SetValue("blinky")
 
-	exampleNames, examplePaths := loadExamples(root)
+	exampleNames, examplePaths := loadExamples(sdk)
 	var exampleDropdown *ui.DropdownView
 	var exampleFilter *ui.InputView
 	if len(exampleNames) > 0 {
@@ -208,11 +210,12 @@ func newApp(root string, cat *catalog.Catalog) *appState {
 		exampleFilter = ui.Input().Placeholder("filter examples...")
 	}
 
-	userSourceInput := ui.Input().Placeholder("path to .S file (e.g. ../src/myapp.S)")
+	userSourceInput := ui.Input().Placeholder("path to .S file (e.g. src/myapp.S)")
 	projectPathInput := ui.Input().Placeholder("project.rpasm.toml path")
 
 	a := &appState{
 		root:           root,
+		sdkRoot:        sdk,
 		catalog:        cat,
 		modules:        modOrder,
 		checks:         checks,
@@ -301,7 +304,7 @@ func (a *appState) expectedUf2() string {
 	if a.currentBootloader() != nil {
 		fname = "firmware_" + name + ".uf2"
 	}
-	return filepath.Join(filepath.Dir(a.root), "build", name, fname)
+	return filepath.Join(a.sdkRoot, "build", name, fname)
 }
 
 // derivedName mirrors runBuild's name logic exactly. Keep them in sync.
@@ -427,11 +430,10 @@ func (a *appState) resolveProjectPath(raw string) (string, error) {
 		}
 		return "", fmt.Errorf("%s: not found", raw)
 	}
-	parent := filepath.Dir(a.root)
 	candidates := []string{
-		raw,                              // CWD-relative
-		filepath.Join(a.root, raw),       // studio-root-relative
-		filepath.Join(parent, raw),       // SDK-root-relative
+		raw,                                // CWD-relative
+		filepath.Join(a.root, raw),         // studio-root-relative
+		filepath.Join(a.sdkRoot, raw),      // SDK-root-relative
 	}
 	for _, c := range candidates {
 		if _, err := os.Stat(c); err == nil {
@@ -494,8 +496,7 @@ func (a *appState) captureProject() *project.Project {
 		if exPath != "" {
 			// Persist a portable relative path (relative to studio root's
 			// parent, i.e. the SDK root, which is the canonical CWD).
-			parent := filepath.Dir(a.root)
-			if rel, err := filepath.Rel(parent, exPath); err == nil && !strings.HasPrefix(rel, "..") {
+			if rel, err := filepath.Rel(a.sdkRoot, exPath); err == nil && !strings.HasPrefix(rel, "..") {
 				p.UserSource.Files = []string{rel}
 			} else {
 				p.UserSource.Files = []string{exPath}
@@ -1054,8 +1055,7 @@ func (a *appState) problemRow(p Problem) ui.View {
 	// Strip a leading SDK-root prefix from the file path so long absolute
 	// paths don't dominate the row. Keep absolute if it's outside the root.
 	display := p.File
-	parent := filepath.Dir(a.root)
-	if rel, err := filepath.Rel(parent, p.File); err == nil && !strings.HasPrefix(rel, "..") {
+	if rel, err := filepath.Rel(a.sdkRoot, p.File); err == nil && !strings.HasPrefix(rel, "..") {
 		display = rel
 	}
 	badge := "E"
@@ -1155,7 +1155,7 @@ func (a *appState) runBuild() {
 
 	// SDK-root build tree (parent of studio module root). Studio and the
 	// Makefile share this directory; per-project subdirs prevent collision.
-	outDir := filepath.Join(filepath.Dir(a.root), "build", proj.Name)
+	outDir := filepath.Join(a.sdkRoot, "build", proj.Name)
 	logWriter := &lineLogger{
 		emit:      a.log,
 		onProblem: a.addProblem,
@@ -1163,6 +1163,7 @@ func (a *appState) runBuild() {
 	result, err := build.Build(&build.Options{
 		Resolved:  res,
 		Root:      a.root,
+		SDKRoot:   a.sdkRoot,
 		OutDir:    outDir,
 		Toolchain: tc,
 		Stdout:    logWriter,
@@ -1369,6 +1370,25 @@ func prettyCategory(c string) string {
 	}
 }
 
+// sdkRoot returns the directory containing src/, include/, link/, examples/.
+// Resolution order: RPASM_SDK env var → sdk/ submodule sibling of studioRoot
+// → monorepo fallback (parent of studioRoot).
+func sdkRoot(studioRoot string) string {
+	if sdk := os.Getenv("RPASM_SDK"); sdk != "" {
+		return sdk
+	}
+	repoRoot := filepath.Dir(studioRoot)
+	if candidate := filepath.Join(repoRoot, "sdk"); isDir(candidate) {
+		return candidate
+	}
+	return repoRoot
+}
+
+func isDir(p string) bool {
+	fi, err := os.Stat(p)
+	return err == nil && fi.IsDir()
+}
+
 func studioRoot() string {
 	cwd, err := os.Getwd()
 	if err != nil {
@@ -1501,12 +1521,11 @@ func parseProblem(line string) (Problem, bool) {
 // real hardware, so we deliberately do NOT default to it.
 //
 // Returns ([head], [head-path]) with no examples if examples/ is missing.
-func loadExamples(studioRoot string) ([]string, []string) {
-	parent := filepath.Dir(studioRoot)
+func loadExamples(sdkRoot string) ([]string, []string) {
 	names := []string{"blinky"}
-	paths := []string{filepath.Join(parent, "src", "main.S")}
+	paths := []string{filepath.Join(sdkRoot, "src", "main.S")}
 
-	exDir := filepath.Join(parent, "examples")
+	exDir := filepath.Join(sdkRoot, "examples")
 	entries, err := os.ReadDir(exDir)
 	if err != nil {
 		return names, paths

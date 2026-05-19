@@ -4,4 +4,4 @@ category = "system"
 order = 240
 default = true
 description = "rom_reset_to_bootsel + bootrom helpers. BOOTRAM itself is bootrom-owned per RP2350 sec 4.3 - exposed only via include/bootram.inc, no driver."
-sources = ["../src/bootrom.S"]
+sources = ["src/bootrom.S"]

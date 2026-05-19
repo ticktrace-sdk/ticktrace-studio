@@ -38,6 +38,10 @@ import (
 type Options struct {
 	Resolved  *project.Resolved
 	Root      string
+	// SDKRoot is the directory containing src/, include/, link/, examples/.
+	// If empty, defaults to filepath.Dir(Root) for monorepo compatibility.
+	// Override via the RPASM_SDK environment variable or set explicitly.
+	SDKRoot   string
 	OutDir    string
 	Toolchain *Toolchain
 	Verbose   bool
@@ -54,6 +58,13 @@ type Options struct {
 	// re-flash the bootloader. Only valid when Resolved.Project.Bootloader
 	// is set.
 	Slot string
+}
+
+func (o *Options) sdk() string {
+	if o.SDKRoot != "" {
+		return o.SDKRoot
+	}
+	return filepath.Dir(o.Root)
 }
 
 type Result struct {
@@ -74,10 +85,9 @@ func Build(opts *Options) (*Result, error) {
 		return nil, err
 	}
 	tgt := opts.Resolved.Target
-	// Toolchain CWD: parent of the studio module root. This is the SDK root
-	// containing src/, include/, link/, examples/, matching how the Makefile
-	// is invoked. Relative `.include "src/nvic.S"` in .S files resolves here.
-	workDir := filepath.Dir(opts.Root)
+	// Toolchain CWD: the SDK root containing src/, include/, link/, examples/.
+	// Relative `.include "src/nvic.S"` in .S files resolves here.
+	workDir := opts.sdk()
 
 	stdout := opts.Stdout
 	if stdout == nil {
@@ -90,7 +100,7 @@ func Build(opts *Options) (*Result, error) {
 
 	asArgs := append([]string{}, tgt.AsFlags...)
 	for _, inc := range tgt.AsIncludes {
-		asArgs = append(asArgs, "-I", resolve(opts.Root, inc))
+		asArgs = append(asArgs, "-I", resolve(opts.sdk(), inc))
 	}
 	// Also expose the SDK root as an -I path so `.include "src/foo.S"` works
 	// even if the CWD differs (defence in depth; CWD is the primary mechanism).
@@ -98,7 +108,7 @@ func Build(opts *Options) (*Result, error) {
 
 	objs := make([]string, 0, len(opts.Resolved.Sources))
 	for _, src := range opts.Resolved.Sources {
-		srcPath := resolve(opts.Root, src)
+		srcPath := resolve(opts.sdk(), src)
 		objName := objectName(src) + ".o"
 		objPath := filepath.Join(opts.OutDir, objName)
 		args := append([]string{}, asArgs...)
@@ -115,14 +125,14 @@ func Build(opts *Options) (*Result, error) {
 	var ldScript string
 	switch {
 	case opts.Slot == "b":
-		ldScript = resolve(opts.Root, ldScriptSlotB)
+		ldScript = resolve(opts.sdk(), ldScriptSlotB)
 	case opts.Resolved.Project.Bootloader != nil:
 		// Slot "" or "a": app links at slot A's base.
-		ldScript = resolve(opts.Root, ldScriptSlotA)
+		ldScript = resolve(opts.sdk(), ldScriptSlotA)
 	case opts.Resolved.Project.Layout == "flash":
-		ldScript = resolve(opts.Root, tgt.LdScriptFlash)
+		ldScript = resolve(opts.sdk(), tgt.LdScriptFlash)
 	case opts.Resolved.Project.Layout == "sram":
-		ldScript = resolve(opts.Root, tgt.LdScriptSram)
+		ldScript = resolve(opts.sdk(), tgt.LdScriptSram)
 	default:
 		return nil, fmt.Errorf("unsupported layout %q", opts.Resolved.Project.Layout)
 	}

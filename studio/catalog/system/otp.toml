@@ -4,4 +4,4 @@ category = "system"
 order = 230
 default = true
 description = "Read-only access to factory + user OTP rows."
-sources = ["../src/otp.S"]
+sources = ["src/otp.S"]

@@ -4,4 +4,4 @@ category = "system"
 order = 70
 default = true
 description = "Watchdog timer + reset reason."
-sources = ["../src/watchdog.S"]
+sources = ["src/watchdog.S"]

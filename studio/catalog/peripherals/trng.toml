@@ -4,4 +4,4 @@ category = "peripherals"
 order = 160
 default = true
 description = "True random number generator."
-sources = ["../src/trng.S"]
+sources = ["src/trng.S"]

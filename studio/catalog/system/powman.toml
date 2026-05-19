@@ -4,4 +4,4 @@ category = "system"
 order = 80
 default = true
 description = "POWMAN power and reset management."
-sources = ["../src/powman.S"]
+sources = ["src/powman.S"]

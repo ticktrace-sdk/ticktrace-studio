@@ -89,6 +89,7 @@ func TestGoldenBlinky(t *testing.T) {
 	result, err := build.Build(&build.Options{
 		Resolved:  res,
 		Root:      root,
+		SDKRoot:   parent,
 		OutDir:    outDir,
 		Toolchain: tc,
 	})

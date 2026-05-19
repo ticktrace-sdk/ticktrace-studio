@@ -4,4 +4,4 @@ category = "system"
 order = 50
 default = true
 description = "PLL configuration helpers (used by clocks)."
-sources = ["../src/pll.S"]
+sources = ["src/pll.S"]

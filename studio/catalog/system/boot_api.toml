@@ -11,4 +11,4 @@ boot_request_bootsel() (to drop to mask-ROM BOOTSEL on demand). Pure flash
 + SRAM cost is a few dozen bytes per function actually used; --gc-sections
 drops the rest.
 """
-sources = ["../src/boot_api.S"]
+sources = ["src/boot_api.S"]

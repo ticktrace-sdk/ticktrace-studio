@@ -4,4 +4,4 @@ category = "system"
 order = 200
 default = true
 description = "Lock-free single-producer / single-consumer byte queue for ISR -> task data path."
-sources = ["../src/spsc.S"]
+sources = ["src/spsc.S"]
