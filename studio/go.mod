@@ -6,7 +6,7 @@ require (
 	gioui.org v0.9.0
 	github.com/BurntSushi/toml v1.6.0
 	github.com/amken3d/immygo v0.1.6
-	github.com/ticktrace-sdk/rp-asm/tools v0.0.0-00010101000000-000000000000
+	github.com/ticktrace-sdk/rp-asm/tools v0.0.1
 )
 
 require (
