@@ -29,7 +29,7 @@ import (
 	"sync/atomic"
 	"time"
 
-	"github.com/amken3d/rp-asm/studio/internal/usbx"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/usbx"
 )
 
 // Default transfer timeouts. Picotool uses 3s for the cmd send, 10s for data

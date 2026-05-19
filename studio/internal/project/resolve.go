@@ -27,7 +27,7 @@ import (
 	"fmt"
 	"sort"
 
-	"github.com/amken3d/rp-asm/studio/internal/catalog"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/catalog"
 )
 
 type Resolved struct {

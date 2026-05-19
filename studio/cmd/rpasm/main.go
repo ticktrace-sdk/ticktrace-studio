@@ -29,10 +29,10 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/amken3d/rp-asm/studio/internal/build"
-	"github.com/amken3d/rp-asm/studio/internal/catalog"
-	"github.com/amken3d/rp-asm/studio/internal/flash"
-	"github.com/amken3d/rp-asm/studio/internal/project"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/build"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/catalog"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/flash"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/project"
 )
 
 func main() {

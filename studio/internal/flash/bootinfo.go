@@ -26,9 +26,9 @@ package flash
 import (
 	"fmt"
 
-	"github.com/amken3d/rp-asm/studio/internal/rpasmboot"
-	"github.com/amken3d/rp-asm/studio/internal/usbx"
-	"github.com/amken3d/rp-asm/tools/manifest"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/rpasmboot"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/usbx"
+	"github.com/ticktrace-sdk/rp-asm/tools/manifest"
 )
 
 // Slot addresses (mirror studio/internal/build/bootloader.go and

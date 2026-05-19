@@ -29,9 +29,9 @@ import (
 	"os"
 	"runtime"
 
-	"github.com/amken3d/rp-asm/studio/internal/flash"
-	"github.com/amken3d/rp-asm/studio/internal/rpasmboot"
-	"github.com/amken3d/rp-asm/studio/internal/usbx"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/flash"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/rpasmboot"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/usbx"
 )
 
 const udevRulePath = "/etc/udev/rules.d/99-rpasmboot.rules"

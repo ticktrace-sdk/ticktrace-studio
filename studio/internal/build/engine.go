@@ -32,7 +32,7 @@ import (
 	"path/filepath"
 	"strings"
 
-	"github.com/amken3d/rp-asm/studio/internal/project"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/project"
 )
 
 type Options struct {

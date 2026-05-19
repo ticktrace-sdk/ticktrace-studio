@@ -26,9 +26,9 @@ package flash
 import (
 	"fmt"
 
-	"github.com/amken3d/rp-asm/studio/internal/rpasmboot"
-	"github.com/amken3d/rp-asm/studio/internal/uf2"
-	"github.com/amken3d/rp-asm/studio/internal/usbx"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/rpasmboot"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/uf2"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/usbx"
 )
 
 // RP2350 memory regions.

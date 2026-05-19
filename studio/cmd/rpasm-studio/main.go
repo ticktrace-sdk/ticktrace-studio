@@ -41,10 +41,10 @@ import (
 	"github.com/amken3d/immygo/theme"
 	"github.com/amken3d/immygo/ui"
 
-	"github.com/amken3d/rp-asm/studio/internal/build"
-	"github.com/amken3d/rp-asm/studio/internal/catalog"
-	"github.com/amken3d/rp-asm/studio/internal/flash"
-	"github.com/amken3d/rp-asm/studio/internal/project"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/build"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/catalog"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/flash"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/project"
 )
 
 const udevRulePath = "/etc/udev/rules.d/99-rpasmboot.rules"

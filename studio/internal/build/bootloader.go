@@ -29,8 +29,8 @@ import (
 	"os"
 	"path/filepath"
 
-	"github.com/amken3d/rp-asm/tools/firmware"
-	"github.com/amken3d/rp-asm/tools/manifest"
+	"github.com/ticktrace-sdk/rp-asm/tools/firmware"
+	"github.com/ticktrace-sdk/rp-asm/tools/manifest"
 )
 
 // Bootloader chain layout (RP2350, mirrors include/bootloader.inc and

@@ -29,7 +29,7 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/amken3d/rp-asm/studio/internal/usbx"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/usbx"
 )
 
 // assertCmdHeader checks the 16-byte fixed header of a picoboot_cmd frame.
