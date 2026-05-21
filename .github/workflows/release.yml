@@ -9,15 +9,16 @@
 #
 # Outputs (uploaded to the GitHub release for the pushed tag):
 #   rpasm-studio_<ver>_darwin_arm64.tar.gz   (Apple Silicon)
-#   rpasm-studio_<ver>_darwin_amd64.tar.gz   (Intel Mac)
 #   rpasm-studio_<ver>_windows_amd64.zip
 #   rpasm-studio_<ver>_linux_amd64.tar.gz
 #   checksums.txt                              (SHA-256 over every archive)
 #
 # Each archive bundles both the rpasm-studio GUI and the rpasm CLI so users
-# get the whole tool set from one download. Code signing / notarization is
-# deferred to v2 - on first install macOS users will need "right-click ->
-# Open", which is the standard unsigned-OSS experience.
+# get the whole tool set from one download. macOS binaries are ad-hoc signed
+# (codesign --sign -) so Gatekeeper lets them run; full Developer-ID signing
+# + notarization is deferred to v2. Intel Mac (darwin/amd64) is intentionally
+# omitted -- macos-13 runners are deprecated; v2 will ship a universal2
+# binary built on macos-14 that runs on both Intel and Apple Silicon.
 
 name: release
 
@@ -49,9 +50,8 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - { runner: macos-14,      os: darwin,  os_label: darwin,  arch: arm64, ext: tar.gz }
-          - { runner: macos-13,      os: darwin,  os_label: darwin,  arch: amd64, ext: tar.gz }
-          - { runner: ubuntu-latest, os: linux,   os_label: linux,   arch: amd64, ext: tar.gz }
+          - { runner: macos-14,       os: darwin,  os_label: darwin,  arch: arm64, ext: tar.gz }
+          - { runner: ubuntu-latest,  os: linux,   os_label: linux,   arch: amd64, ext: tar.gz }
           - { runner: windows-latest, os: windows, os_label: windows, arch: amd64, ext: zip }
 
     defaults:
@@ -105,20 +105,43 @@ jobs:
           GOOS:        ${{ matrix.os }}
           GOARCH:      ${{ matrix.arch }}
           VERSION:     ${{ steps.ver.outputs.version }}
+          # The repo's go.work references ./sdk/tools (a sibling rp-asm
+          # checkout in dev) which doesn't exist on the CI runner. GOWORK=off
+          # tells Go to ignore the workspace and just use studio/go.mod.
+          GOWORK:      off
         run: |
           set -eux
           mkdir -p dist
           ext=""
-          if [ "${GOOS}" = "windows" ]; then ext=".exe"; fi
+          gui_ldflags=""
+          if [ "${GOOS}" = "windows" ]; then
+            ext=".exe"
+            # Without -H windowsgui, double-clicking rpasm-studio.exe pops
+            # a black console window alongside the GUI. The CLI (rpasm)
+            # keeps the default subsystem so it works in cmd/PowerShell.
+            gui_ldflags="-H windowsgui"
+          fi
 
-          # Embedding the version via -X requires a known main-package var.
-          # If main doesn't expose one yet, -ldflags="-X" is silently a no-op.
           # -s -w strips debug info; -trimpath removes absolute build paths.
           ldflags="-s -w"
-          go build -trimpath -ldflags "$ldflags" \
+          go build -trimpath -ldflags "$ldflags $gui_ldflags" \
             -o "dist/rpasm-studio${ext}" ./cmd/rpasm-studio
           go build -trimpath -ldflags "$ldflags" \
             -o "dist/rpasm${ext}" ./cmd/rpasm
+
+      # Ad-hoc sign Mac binaries so Gatekeeper lets them run. Without this,
+      # Apple Silicon silently kills unsigned binaries ("killed: 9" with no
+      # dialog). codesign --sign - is free and requires no Apple Developer
+      # ID; users still see the standard first-run quarantine prompt that
+      # right-click -> Open clears.
+      - name: Ad-hoc sign (macOS)
+        if: matrix.os == 'darwin'
+        run: |
+          set -eux
+          codesign --sign - --force dist/rpasm-studio
+          codesign --sign - --force dist/rpasm
+          codesign --verify --verbose dist/rpasm-studio
+          codesign --verify --verbose dist/rpasm
 
       - name: Archive
         env:
