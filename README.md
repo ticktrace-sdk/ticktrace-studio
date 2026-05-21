@@ -11,11 +11,23 @@ ticktrace Studio lets you configure, build, and flash assembly-language firmware
 | `rpasm` | CLI — build and flash from a terminal |
 | `rpasm-studio` | GUI — visual catalog browser, build log, and one-click BOOTSEL flash |
 
-## Requirements
+## Download
 
-- Go 1.24+
-- `arm-none-eabi-as` and `arm-none-eabi-ld` on `$PATH`
+Pre-built binaries for macOS (Intel + Apple Silicon), Windows, and Linux are on the [Releases page](https://github.com/ticktrace-sdk/ticktrace-studio/releases). Each archive contains both `rpasm-studio` (GUI) and `rpasm` (CLI).
+
+On first launch Studio checks for an ARM toolchain (`arm-none-eabi-as`/`-ld`/`-objcopy`) and offers to download a managed copy (~150 MB) into `~/.ticktrace/toolchain/` if none is found. From the CLI:
+
+```sh
+rpasm install-toolchain
+```
+
+If you already have a toolchain via Homebrew, scoop, or ARM's official installer, Studio picks it up automatically — no download needed.
+
+## Build from source
+
+- Go 1.26+ (matches `studio/go.mod`)
 - [ticktrace SDK](https://github.com/ticktrace-sdk/rp-asm) (included as a git submodule at `sdk/`)
+- An ARM toolchain — either system-installed, or installed via `rpasm install-toolchain` (above)
 
 ### GUI dependencies (rpasm-studio only)
 
@@ -45,6 +57,14 @@ The SDK submodule path is auto-detected. Override it with:
 ```sh
 RPASM_SDK=/path/to/sdk rpasm build
 ```
+
+## Cutting a release
+
+1. Tag the commit you want to ship: `git tag v0.1.0 && git push --tags`.
+2. The `release` workflow builds Studio natively on macOS (arm64 + amd64), Windows, and Linux, then publishes the archives + `checksums.txt` to a new GitHub release.
+3. Verify the SHA-256 in the release matches `dist/checksums.txt`.
+
+To smoke-test the release pipeline without publishing, trigger the workflow manually via the **Actions → release → Run workflow** button — it produces the same archives as build artifacts but skips the `gh release create` step.
 
 ## Repository layout
 

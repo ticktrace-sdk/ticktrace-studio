@@ -1,0 +1,34 @@
+{
+  "version": "2.43-1",
+  "source": "https://github.com/ticktrace-sdk/binutils-arm-none-eabi/releases/tag/v2.43-1",
+  "entries": {
+    "darwin/arm64": {
+      "url": "https://github.com/ticktrace-sdk/binutils-arm-none-eabi/releases/download/v2.43-1/binutils-arm-none-eabi-2.43-darwin-arm64.tar.gz",
+      "sha256": "931112476bbfa3be5b4a31c3dabfc5c58f1f17c617277444508627ae74efd2a6",
+      "archive": "tar.gz",
+      "strip_components": 0,
+      "size": 0
+    },
+    "linux/amd64": {
+      "url": "https://github.com/ticktrace-sdk/binutils-arm-none-eabi/releases/download/v2.43-1/binutils-arm-none-eabi-2.43-linux-amd64.tar.gz",
+      "sha256": "747d4dcd0eca05122f3bab387e04a63fa6946b89897b6b906c1c17931fc67d29",
+      "archive": "tar.gz",
+      "strip_components": 0,
+      "size": 0
+    },
+    "linux/arm64": {
+      "url": "https://github.com/ticktrace-sdk/binutils-arm-none-eabi/releases/download/v2.43-1/binutils-arm-none-eabi-2.43-linux-arm64.tar.gz",
+      "sha256": "d4a23918b114e5d284322255497eaff5a38d16b67e9a41d1f66e1487982c53a9",
+      "archive": "tar.gz",
+      "strip_components": 0,
+      "size": 0
+    },
+    "windows/amd64": {
+      "url": "https://github.com/ticktrace-sdk/binutils-arm-none-eabi/releases/download/v2.43-1/binutils-arm-none-eabi-2.43-windows-amd64.zip",
+      "sha256": "d5b4e8564381a15b7d8e93f984573174df01960f79b58144717706e432ade31e",
+      "archive": "zip",
+      "strip_components": 0,
+      "size": 0
+    }
+  }
+}

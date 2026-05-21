@@ -24,15 +24,20 @@
 package main
 
 import (
+	"context"
 	"flag"
 	"fmt"
 	"os"
+	"os/signal"
 	"path/filepath"
+	"syscall"
+	"time"
 
 	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/build"
 	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/catalog"
 	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/flash"
 	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/project"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/toolchain"
 )
 
 func main() {
@@ -55,6 +60,8 @@ func main() {
 		os.Exit(cmdBootInfo(os.Args[2:]))
 	case "doctor":
 		os.Exit(cmdDoctor(os.Args[2:]))
+	case "install-toolchain":
+		os.Exit(cmdInstallToolchain(os.Args[2:]))
 	case "-h", "--help", "help":
 		usage()
 	default:
@@ -75,6 +82,7 @@ usage:
   rpasm info
   rpasm bootinfo
   rpasm doctor   [--root DIR]
+  rpasm install-toolchain
 
 Paths in project and catalog TOML are resolved relative to --root (default: studio module root, auto-detected from CWD).
 `)
@@ -170,9 +178,8 @@ func cmdBuild(args []string) int {
 		fmt.Fprintln(os.Stderr, err)
 		return 1
 	}
-	tc, err := build.Detect(res.Target.ToolchainPrefix)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err)
+	tc, ok := resolveToolchainOrHint(res.Target.ToolchainPrefix)
+	if !ok {
 		return 1
 	}
 	outDir := *out
@@ -246,9 +253,8 @@ func cmdFlash(args []string) int {
 		}
 		if *slot != "" {
 			// Per-slot mode: rebuild for the chosen slot, flash the slot-only UF2.
-			tc, err := build.Detect(res.Target.ToolchainPrefix)
-			if err != nil {
-				fmt.Fprintln(os.Stderr, err)
+			tc, ok := resolveToolchainOrHint(res.Target.ToolchainPrefix)
+			if !ok {
 				return 1
 			}
 			outDir := filepath.Join(filepath.Dir(*root), "build", res.Project.Name)
@@ -326,12 +332,20 @@ func cmdDoctor(args []string) int {
 	rc := 0
 	for name, t := range cat.Targets {
 		fmt.Printf("[target %s]\n", name)
-		tc, err := build.Detect(t.ToolchainPrefix)
+		status, err := toolchain.Resolve(t.ToolchainPrefix)
 		if err != nil {
 			fmt.Printf("  ERROR: %s\n", err)
 			rc = 1
 			continue
 		}
+		if status.Toolchain == nil {
+			fmt.Printf("  not found (%s)\n", status.Hint)
+			fmt.Println("  fix:  rpasm install-toolchain")
+			rc = 1
+			continue
+		}
+		tc := status.Toolchain
+		fmt.Printf("  source:  %s\n", status.Source)
 		fmt.Printf("  as:      %s\n           %s\n", tc.As, tc.Version(tc.As))
 		fmt.Printf("  ld:      %s\n           %s\n", tc.Ld, tc.Version(tc.Ld))
 		fmt.Printf("  objcopy: %s\n           %s\n", tc.Objcopy, tc.Version(tc.Objcopy))
@@ -341,4 +355,81 @@ func cmdDoctor(args []string) int {
 		rc = 1
 	}
 	return rc
+}
+
+// resolveToolchainOrHint resolves a usable toolchain via the hybrid search
+// (managed install → bundled → Homebrew/ARM/scoop → PATH). On miss, it
+// prints a one-line "fix:" hint and returns ok=false so the caller exits.
+// This keeps the three build/flash/doctor sites identical and lets users
+// recover with a single command rather than reading the README.
+func resolveToolchainOrHint(prefix string) (*build.Toolchain, bool) {
+	status, err := toolchain.Resolve(prefix)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err)
+		return nil, false
+	}
+	if status.Toolchain == nil {
+		fmt.Fprintf(os.Stderr, "ARM toolchain not found.\n  %s\n  fix: rpasm install-toolchain\n", status.Hint)
+		return nil, false
+	}
+	return status.Toolchain, true
+}
+
+// cmdInstallToolchain downloads, verifies, and extracts the pinned ARM
+// toolchain into ~/.ticktrace/toolchain/<version>/. Idempotent: skips the
+// network round-trip if a usable copy is already at the destination.
+func cmdInstallToolchain(args []string) int {
+	fs := flag.NewFlagSet("install-toolchain", flag.ExitOnError)
+	if err := fs.Parse(args); err != nil {
+		return 2
+	}
+
+	// SIGINT/SIGTERM cancels the download cleanly rather than leaving a
+	// half-written .dl-* file in the managed dir (Install handles cleanup).
+	ctx, cancel := signal.NotifyContext(context.Background(), os.Interrupt, syscall.SIGTERM)
+	defer cancel()
+
+	fmt.Println("Installing ARM toolchain into ~/.ticktrace/toolchain/")
+	last := time.Now()
+	progress := func(done, total int64) {
+		// Throttle prints to ~5/s so terminal scrollback stays usable.
+		if time.Since(last) < 200*time.Millisecond && done != total {
+			return
+		}
+		last = time.Now()
+		if total > 0 {
+			fmt.Printf("  %s / %s  (%.1f%%)\n",
+				humanBytes(done), humanBytes(total),
+				float64(done)*100/float64(total))
+		} else {
+			fmt.Printf("  %s\n", humanBytes(done))
+		}
+	}
+
+	status, err := toolchain.Install(ctx, progress)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "install failed:", err)
+		return 1
+	}
+	if status.Toolchain == nil {
+		fmt.Fprintln(os.Stderr, "install reported success but Resolve still misses; check ~/.ticktrace/toolchain/")
+		return 1
+	}
+	fmt.Println("Done.")
+	fmt.Println("  as:      " + status.Toolchain.As)
+	fmt.Println("  source:  " + string(status.Source))
+	return 0
+}
+
+func humanBytes(n int64) string {
+	const k = 1024
+	if n < k {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(k), 0
+	for v := n / k; v >= k; v /= k {
+		div *= k
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
 }

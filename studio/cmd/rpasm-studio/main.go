@@ -24,6 +24,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -45,6 +46,7 @@ import (
 	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/catalog"
 	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/flash"
 	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/project"
+	"github.com/ticktrace-sdk/ticktrace-studio/studio/internal/toolchain"
 )
 
 const udevRulePath = "/etc/udev/rules.d/99-rpasmboot.rules"
@@ -135,6 +137,13 @@ type appState struct {
 	slotInfo   *ui.State[[]flash.SlotInfo]
 	slotErr    *ui.State[string]
 	querying   *ui.State[bool]
+
+	// Toolchain. tcStatus is refreshed at startup and after a managed
+	// install completes; runBuild re-resolves on every press so a freshly
+	// brew-installed toolchain is picked up without restarting Studio.
+	tcStatus   *ui.State[*toolchain.Status]
+	installing *ui.State[bool]
+	installMsg *ui.State[string]
 
 	logMu sync.Mutex
 }
@@ -247,6 +256,10 @@ func newApp(root, sdk string, cat *catalog.Catalog) *appState {
 		slotInfo: ui.NewState[[]flash.SlotInfo](nil),
 		slotErr:  ui.NewState(""),
 		querying: ui.NewState(false),
+
+		tcStatus:   ui.NewState[*toolchain.Status](nil),
+		installing: ui.NewState(false),
+		installMsg: ui.NewState(""),
 	}
 	a.modeTabBar = ui.TabBar("Examples", "Custom Project").
 		SetSelected(0).
@@ -285,7 +298,95 @@ func newApp(root, sdk string, cat *catalog.Catalog) *appState {
 				a.layoutDropdown.SetSelected(0)
 			}
 		})
+
+	// Probe for an ARM toolchain in the background so first-paint isn't
+	// blocked by a few filesystem stats. The toolsRow will surface an
+	// "Install ARM Toolchain" prompt if Resolve comes back empty.
+	go a.refreshToolchain()
+
 	return a
+}
+
+// refreshToolchain runs the hybrid search and updates tcStatus. Safe to
+// call from any goroutine; the ui.State setter is concurrency-safe and
+// the result is read by the layout pass on the next frame.
+func (a *appState) refreshToolchain() {
+	status, err := toolchain.Resolve(toolchain.DefaultPrefix)
+	if err != nil {
+		a.tcStatus.Set(&toolchain.Status{
+			Source: toolchain.SourceNotFound,
+			Hint:   "Toolchain probe failed: " + err.Error(),
+		})
+		return
+	}
+	a.tcStatus.Set(status)
+	if status.Toolchain != nil {
+		a.log("toolchain: " + status.Toolchain.As + "  (source: " + string(status.Source) + ")")
+	}
+}
+
+// onInstallToolchain kicks off the managed download. Idempotent: if a
+// usable install already exists at the destination, Install short-circuits
+// and Resolve picks it up immediately. Runs in a goroutine so the UI
+// stays responsive while ~150 MB streams in.
+func (a *appState) onInstallToolchain() {
+	if a.installing.Get() {
+		return
+	}
+	a.installing.Set(true)
+	a.installMsg.Set("Starting download…")
+	a.log("[toolchain] installing managed ARM toolchain into ~/.ticktrace/toolchain/")
+	go func() {
+		defer a.installing.Set(false)
+
+		last := time.Now()
+		progress := func(done, total int64) {
+			// Throttle UI updates to ~5/s; the State setter is cheap but
+			// re-rendering every chunk wastes frames during a 150 MB pull.
+			if time.Since(last) < 200*time.Millisecond && done != total {
+				return
+			}
+			last = time.Now()
+			if total > 0 {
+				a.installMsg.Set(fmt.Sprintf(
+					"Downloading: %s / %s  (%.1f%%)",
+					humanBytesSigned(done), humanBytesSigned(total),
+					float64(done)*100/float64(total),
+				))
+			} else {
+				a.installMsg.Set("Downloading: " + humanBytesSigned(done))
+			}
+		}
+
+		ctx := context.Background()
+		status, err := toolchain.Install(ctx, progress)
+		if err != nil {
+			a.installMsg.Set("Install failed: " + err.Error())
+			a.log("[toolchain] ERROR: " + err.Error())
+			return
+		}
+		a.tcStatus.Set(status)
+		a.installMsg.Set("")
+		if status.Toolchain != nil {
+			a.log("[toolchain] installed: " + status.Toolchain.As)
+			a.status.Set("Toolchain installed. Ready to build.")
+		}
+	}()
+}
+
+// humanBytesSigned mirrors the CLI helper but takes int64 so the same
+// formatting is used in both contexts (progress callback gives int64).
+func humanBytesSigned(n int64) string {
+	const k = 1024
+	if n < k {
+		return fmt.Sprintf("%d B", n)
+	}
+	div, exp := int64(k), 0
+	for v := n / k; v >= k; v /= k {
+		div *= k
+		exp++
+	}
+	return fmt.Sprintf("%.1f %cB", float64(n)/float64(div), "KMGTPE"[exp])
 }
 
 // expectedUf2 returns the canonical UF2 output path for the current
@@ -680,6 +781,15 @@ func (a *appState) toolsRow() ui.View {
 		}
 		row = append(row, ui.Spacer())
 	}
+
+	// Toolchain status. We only show the install affordance when there's
+	// something for the user to do (missing or currently installing) so the
+	// row stays quiet in the steady-state. The button label doubles as the
+	// progress indicator while a download is in flight.
+	if tcRow := a.toolchainBanner(); tcRow != nil {
+		row = append(row, tcRow)
+		row = append(row, ui.Spacer())
+	}
 	if board.InBootsel {
 		row = append(row, ui.Text("Board: in BOOTSEL @ "+board.Mountpoint).Small().Bold())
 	} else {
@@ -707,6 +817,34 @@ func (a *appState) toolsRow() ui.View {
 		panel = append(panel, ui.Text(formatSlot(s)).Small())
 	}
 	return ui.VStack(header, ui.VStack(panel...).Spacing(ui.SpaceXS)).Spacing(ui.SpaceSm)
+}
+
+// toolchainBanner returns the "ARM toolchain not found" / install-progress
+// row, or nil when the toolchain is present and we shouldn't clutter the
+// UI. Polled once per frame from toolsRow.
+func (a *appState) toolchainBanner() ui.View {
+	if a.installing.Get() {
+		msg := a.installMsg.Get()
+		if msg == "" {
+			msg = "Installing ARM toolchain…"
+		}
+		return ui.Text(msg).Small().Bold()
+	}
+	st := a.tcStatus.Get()
+	if st == nil {
+		// Still probing at startup; surface a quiet indicator instead of
+		// an empty hole that resizes when the probe finishes.
+		return ui.Text("toolchain: detecting…").Small()
+	}
+	if st.Toolchain != nil {
+		return nil // happy path; row stays out of the way
+	}
+	// Missing -> offer install. Spacer pads the button away from the
+	// neighbouring board status so the row reads cleanly.
+	return ui.HStack(
+		ui.Text("ARM toolchain not found.").Small().Bold(),
+		ui.Button("Install ARM Toolchain").OnClick(a.onInstallToolchain),
+	).Spacing(ui.SpaceSm).Center()
 }
 
 func formatSlot(s flash.SlotInfo) string {
@@ -1145,12 +1283,22 @@ func (a *appState) runBuild() {
 	}
 	a.log(fmt.Sprintf("modules: %d enabled, %d sources", len(res.Modules), len(res.Sources)))
 
-	tc, err := build.Detect(res.Target.ToolchainPrefix)
+	// Re-resolve every build so a freshly brew-installed or just-finished
+	// managed install is picked up without restarting Studio.
+	tcst, err := toolchain.Resolve(res.Target.ToolchainPrefix)
 	if err != nil {
-		a.status.Set("Toolchain missing.")
+		a.status.Set("Toolchain probe failed.")
 		a.log("ERROR: " + err.Error())
 		return
 	}
+	a.tcStatus.Set(tcst)
+	if tcst.Toolchain == nil {
+		a.status.Set("ARM toolchain not found.")
+		a.log("ERROR: " + tcst.Hint)
+		a.log("        Click 'Install ARM Toolchain' to download (~150 MB).")
+		return
+	}
+	tc := tcst.Toolchain
 	a.log("toolchain: " + tc.As)
 
 	// SDK-root build tree (parent of studio module root). Studio and the

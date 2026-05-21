@@ -25,8 +25,12 @@ package build
 
 import (
 	"bytes"
+	"errors"
 	"fmt"
+	"os"
 	"os/exec"
+	"path/filepath"
+	"runtime"
 	"strings"
 )
 
@@ -38,7 +42,37 @@ type Toolchain struct {
 	Size    string // optional; used for per-section memory breakdown
 }
 
+// MissingError is returned when one or more required toolchain binaries
+// can't be found. The Studio UI uses errors.As to detect this case and
+// offer a one-click install of the managed toolchain. Callers that don't
+// care about the structured form can just print err and continue.
+type MissingError struct {
+	Prefix    string
+	Searched  []string // PATH dirs and extra dirs that were searched
+	Missing   []string // e.g. "arm-none-eabi-as", "arm-none-eabi-ld"
+}
+
+func (e *MissingError) Error() string {
+	if len(e.Searched) == 0 {
+		return fmt.Sprintf("toolchain binaries not found on PATH: %s",
+			strings.Join(e.Missing, ", "))
+	}
+	return fmt.Sprintf("toolchain binaries not found (searched %d locations): %s",
+		len(e.Searched), strings.Join(e.Missing, ", "))
+}
+
+// Detect resolves a toolchain by prefix using PATH. Kept for backwards
+// compatibility with the CLI and tests; callers that want the full hybrid
+// search (bundled paths, ~/.ticktrace/toolchain, Homebrew, etc.) should
+// use the higher-level toolchain package, which calls DetectIn.
 func Detect(prefix string) (*Toolchain, error) {
+	return DetectIn(prefix, nil)
+}
+
+// DetectIn resolves a toolchain by prefix, looking in extraDirs first and
+// then falling back to PATH. Returns *MissingError if any required binary
+// (as/ld/objcopy) can't be found anywhere.
+func DetectIn(prefix string, extraDirs []string) (*Toolchain, error) {
 	t := &Toolchain{Prefix: prefix}
 	missing := []string{}
 	for _, bin := range []struct {
@@ -50,22 +84,61 @@ func Detect(prefix string) (*Toolchain, error) {
 		{&t.Objcopy, "objcopy"},
 	} {
 		full := prefix + bin.name
-		path, err := exec.LookPath(full)
-		if err != nil {
-			missing = append(missing, full)
+		if path, ok := lookIn(extraDirs, full); ok {
+			*bin.dst = path
 			continue
 		}
-		*bin.dst = path
+		if path, err := exec.LookPath(full); err == nil {
+			*bin.dst = path
+			continue
+		}
+		missing = append(missing, full)
 	}
 	if len(missing) > 0 {
-		return nil, fmt.Errorf("toolchain binaries not found on PATH: %s", strings.Join(missing, ", "))
+		return nil, &MissingError{
+			Prefix:   prefix,
+			Searched: extraDirs,
+			Missing:  missing,
+		}
 	}
 	// size is optional; old toolchains may lack it. Absence isn't a fatal
 	// error; the engine just skips per-section breakdown.
-	if path, err := exec.LookPath(prefix + "size"); err == nil {
+	sizeName := prefix + "size"
+	if path, ok := lookIn(extraDirs, sizeName); ok {
+		t.Size = path
+	} else if path, err := exec.LookPath(sizeName); err == nil {
 		t.Size = path
 	}
 	return t, nil
+}
+
+// IsMissing is a convenience for callers that just want to know whether
+// an error indicates a missing toolchain (vs. e.g. a permissions problem).
+func IsMissing(err error) bool {
+	var me *MissingError
+	return errors.As(err, &me)
+}
+
+// lookIn searches extraDirs (in order) for an executable named bin. On
+// Windows, .exe is appended automatically. Returns the full path and true
+// if found.
+func lookIn(extraDirs []string, bin string) (string, bool) {
+	candidates := []string{bin}
+	if runtime.GOOS == "windows" && !strings.HasSuffix(bin, ".exe") {
+		candidates = []string{bin + ".exe", bin}
+	}
+	for _, dir := range extraDirs {
+		if dir == "" {
+			continue
+		}
+		for _, c := range candidates {
+			full := filepath.Join(dir, c)
+			if isExecutable(full) {
+				return full, true
+			}
+		}
+	}
+	return "", false
 }
 
 func (t *Toolchain) Version(bin string) string {
@@ -75,4 +148,18 @@ func (t *Toolchain) Version(bin string) string {
 	}
 	first, _, _ := bytes.Cut(out, []byte("\n"))
 	return string(first)
+}
+
+// isExecutable reports whether p is a regular file the current user can
+// execute. On Windows, presence of the file is sufficient (perm bits are
+// not the right test there).
+func isExecutable(p string) bool {
+	fi, err := os.Stat(p)
+	if err != nil || fi.IsDir() {
+		return false
+	}
+	if runtime.GOOS == "windows" {
+		return true
+	}
+	return fi.Mode().Perm()&0o111 != 0
 }

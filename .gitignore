@@ -1,2 +1,7 @@
 # Private docs — not for public distribution
 private/
+
+# Studio build outputs (produced by `go build` in the studio/ module).
+studio/rpasm
+studio/rpasm-studio
+studio/dist/

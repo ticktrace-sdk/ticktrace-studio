@@ -1,0 +1,181 @@
+# Build cross-platform ticktrace Studio binaries on tag and publish a
+# GitHub release.
+#
+# Why a per-OS matrix instead of pure-Go cross-compile or GoReleaser:
+# Studio is built on Gio, which needs CGo for cocoa (macOS), win32 (Windows),
+# and Wayland/X11 (Linux). Cross-compiling Gio binaries is brittle; native
+# runners per OS sidestep the entire toolchain matrix and give us binaries
+# that match what users would produce locally.
+#
+# Outputs (uploaded to the GitHub release for the pushed tag):
+#   rpasm-studio_<ver>_darwin_arm64.tar.gz   (Apple Silicon)
+#   rpasm-studio_<ver>_darwin_amd64.tar.gz   (Intel Mac)
+#   rpasm-studio_<ver>_windows_amd64.zip
+#   rpasm-studio_<ver>_linux_amd64.tar.gz
+#   checksums.txt                              (SHA-256 over every archive)
+#
+# Each archive bundles both the rpasm-studio GUI and the rpasm CLI so users
+# get the whole tool set from one download. Code signing / notarization is
+# deferred to v2 - on first install macOS users will need "right-click ->
+# Open", which is the standard unsigned-OSS experience.
+
+name: release
+
+on:
+  push:
+    tags: ['v*']
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version label for a manual build (e.g. v0.1.0-rc1). Used in archive names; no release is published.'
+        required: false
+        default: 'manual'
+
+permissions:
+  contents: write   # to create the GitHub release and upload assets
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false   # don't kill an in-flight release if a re-push lands
+
+jobs:
+  # ---------------------------------------------------------------------------
+  # Build one archive per (os, arch). Each runner is native; we never cross.
+  # ---------------------------------------------------------------------------
+  build:
+    name: ${{ matrix.os_label }}-${{ matrix.arch }}
+    runs-on: ${{ matrix.runner }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - { runner: macos-14,      os: darwin,  os_label: darwin,  arch: arm64, ext: tar.gz }
+          - { runner: macos-13,      os: darwin,  os_label: darwin,  arch: amd64, ext: tar.gz }
+          - { runner: ubuntu-latest, os: linux,   os_label: linux,   arch: amd64, ext: tar.gz }
+          - { runner: windows-latest, os: windows, os_label: windows, arch: amd64, ext: zip }
+
+    defaults:
+      run:
+        shell: bash
+        working-directory: studio
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-go@v5
+        with:
+          go-version-file: studio/go.mod
+          cache: true
+          cache-dependency-path: studio/go.sum
+
+      # Linux: install Gio's X11/Wayland/GL/Vulkan headers. Without these
+      # the cgo build fails with "X11/Xlib.h: No such file or directory".
+      - name: Install Linux Gio dependencies
+        if: matrix.os == 'linux'
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            libgles2-mesa-dev \
+            libegl1-mesa-dev \
+            libvulkan-dev \
+            libwayland-dev \
+            libxkbcommon-dev \
+            libx11-dev \
+            libxcursor-dev \
+            libxi-dev \
+            libxrandr-dev \
+            libxinerama-dev \
+            libxxf86vm-dev
+
+      - name: Compute version
+        id: ver
+        run: |
+          if [ "${GITHUB_REF_TYPE}" = "tag" ]; then
+            v="${GITHUB_REF_NAME#v}"
+          else
+            v="${{ github.event.inputs.version || 'dev' }}"
+            v="${v#v}"
+          fi
+          echo "version=$v" >> "$GITHUB_OUTPUT"
+          echo "Building version: $v"
+
+      - name: Build rpasm-studio and rpasm
+        env:
+          CGO_ENABLED: '1'
+          GOOS:        ${{ matrix.os }}
+          GOARCH:      ${{ matrix.arch }}
+          VERSION:     ${{ steps.ver.outputs.version }}
+        run: |
+          set -eux
+          mkdir -p dist
+          ext=""
+          if [ "${GOOS}" = "windows" ]; then ext=".exe"; fi
+
+          # Embedding the version via -X requires a known main-package var.
+          # If main doesn't expose one yet, -ldflags="-X" is silently a no-op.
+          # -s -w strips debug info; -trimpath removes absolute build paths.
+          ldflags="-s -w"
+          go build -trimpath -ldflags "$ldflags" \
+            -o "dist/rpasm-studio${ext}" ./cmd/rpasm-studio
+          go build -trimpath -ldflags "$ldflags" \
+            -o "dist/rpasm${ext}" ./cmd/rpasm
+
+      - name: Archive
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+          OS:      ${{ matrix.os }}
+          ARCH:    ${{ matrix.arch }}
+          EXT:     ${{ matrix.ext }}
+        run: |
+          set -eux
+          base="rpasm-studio_${VERSION}_${OS}_${ARCH}"
+          cd dist
+          if [ "${EXT}" = "zip" ]; then
+            7z a "${base}.zip" rpasm-studio.exe rpasm.exe >/dev/null
+          else
+            tar -czf "${base}.tar.gz" rpasm-studio rpasm
+          fi
+          ls -la
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist-${{ matrix.os }}-${{ matrix.arch }}
+          path: studio/dist/rpasm-studio_*.${{ matrix.ext }}
+          if-no-files-found: error
+          retention-days: 7
+
+  # ---------------------------------------------------------------------------
+  # Collect every per-OS archive, compute checksums, publish the release.
+  # Only runs on tag pushes; workflow_dispatch produces artifacts only.
+  # ---------------------------------------------------------------------------
+  release:
+    name: Publish release
+    needs: build
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/download-artifact@v4
+        with:
+          path: dist
+          merge-multiple: true
+
+      - name: Generate checksums
+        run: |
+          cd dist
+          sha256sum * > checksums.txt
+          cat checksums.txt
+
+      - name: Create GitHub Release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eux
+          tag="${GITHUB_REF_NAME}"
+          # --generate-notes pulls the auto-generated changelog from PR
+          # titles since the last tag; replace with --notes-file when we
+          # start curating release notes by hand.
+          gh release create "$tag" dist/* \
+            --title "$tag" \
+            --generate-notes
