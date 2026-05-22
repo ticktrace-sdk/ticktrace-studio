@@ -5,3 +5,12 @@ private/
 studio/rpasm
 studio/rpasm-studio
 studio/dist/
+
+# JetBrains IDE configs (local, per-user)
+.idea/
+
+# JetBrains IDE configs (local, per-user).
+.idea/
+
+# JetBrains IDE configs (local, per-user).
+.idea/
