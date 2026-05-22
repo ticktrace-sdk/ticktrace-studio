@@ -96,4 +96,4 @@ private/         Internal docs, not distributed
 
 ## License
 
-AGPL-3.0-or-later. A commercial license is available from Amken LLC for use cases that cannot comply with the AGPL. See [`sdk/COMMERCIAL-LICENSE.md`](sdk/COMMERCIAL-LICENSE.md).
+AGPL-3.0-or-later. A commercial license is available from Amken LLC for use cases that cannot comply with the AGPL. See [`sdk/COMMERCIAL-LICENSE.md`](sdk/COMMERCIAL-LICENSE.md), or email [licensing@ticktrace.io](mailto:licensing@ticktrace.io).
