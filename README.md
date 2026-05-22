@@ -25,6 +25,12 @@ rpasm install-toolchain
 
 The managed toolchain is a 5.6 MB minimal binutils build (no C compiler, because the SDK has nothing to compile) installed into `~/.ticktrace/toolchain/`. If you already have a toolchain via Homebrew, scoop, or ARM's official installer, Studio picks it up automatically — no download needed.
 
+## What it looks like
+
+Pick a demo, build, flash the Pico — 20 seconds, no terminal:
+
+![ticktrace Studio: pick → build → flash → SRAM 5.34 KB / 512 KB used](docs/images/studio-demo.gif)
+
 ## Screenshots
 
 ### Examples catalog — pick a demo, build, and flash
